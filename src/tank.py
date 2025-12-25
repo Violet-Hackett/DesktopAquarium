@@ -3,6 +3,8 @@ import organism
 from runtime_resources import *
 from graphics_resources import *
 from enum import Enum
+from effects import *
+import random
 
 class BufferKey(Enum):
     BACKGROUND = 0
@@ -16,6 +18,7 @@ class Tank:
         self.rect = rect
         self.organisms = organisms
         self.buffers: dict[BufferKey, pygame.Surface] = {}
+        self.godrays: list[Godray] = []
 
     def update(self):
         self.apply_mouse_water_forces()
@@ -33,7 +36,7 @@ class Tank:
                 vertex.x += max(-MWF, min(MWF, vx * MWF / mouse_distance**2))
                 vertex.y += max(-MWF, min(MWF, vy * MWF / mouse_distance**2))
 
-    def pull_background(self):
+    def render_background(self):
         if BufferKey.BACKGROUND not in self.buffers.keys():
             surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
             background_image = pygame.image.load(state.TEXTURES_FP + "\\water_background.png")
@@ -44,6 +47,23 @@ class Tank:
             surface.blit(background_image, background_offset)
             self.buffers[BufferKey.BACKGROUND] = surface
         return self.buffers[BufferKey.BACKGROUND]
+    
+    def render_godrays(self):
+        surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        
+        if random.random() < GODRAY_FREQUENCY:
+            self.godrays.append(Godray(random.random()/10, (biased_random_beta(strength=10)-0.5)*2))
+
+        new_godrays = []
+        for godray in self.godrays:
+            if godray.age <= GODRAY_LIFESPAN:
+                surface.blit(godray.render(), (0, 0))
+                new_godrays.append(godray)
+            godray.update()
+                
+        self.godrays = new_godrays
+        surface = pygame.transform.box_blur(surface, GODRAY_BLUR)
+        return surface
 
     
     def render(self, scale: float, render_procedural_texture: bool = True, 
@@ -51,8 +71,8 @@ class Tank:
 
         surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
 
-        # Render background effects
-        surface.blit(self.pull_background(), (0, 0))
+        # Render background
+        surface.blit(self.render_background(), (0, 0))
 
         # Render organisms
         for organism_instance in self.organisms:
@@ -61,7 +81,8 @@ class Tank:
             if overlay_frame:
                 surface.blit(organism_instance.render_frame(self.rect), (0, 0))
 
-         # Render foreground effects
+        # Render foreground effects
+        surface.blit(self.render_godrays(), (0, 0))
 
         surface = pygame.transform.scale_by(surface, scale)
         return surface 
