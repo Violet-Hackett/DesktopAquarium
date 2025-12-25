@@ -3,6 +3,7 @@ from pygame.surface import Surface as Surface
 from organism import *
 from softbody import *
 from runtime_resources import *
+import state
 
 DEFAULT_GOBY_SIZE = 6
 GOBY_EYE_COLOR = pygame.Color(255, 255, 255)
@@ -39,7 +40,7 @@ class Goby(Organism):
             self.turn()
         if self.softbody.vertices[0].x < 10 and self.direction == -1:
             self.turn()
-        elif self.softbody.vertices[0].x > TANK_SIZE[0] - 10 and self.direction == 1:
+        elif self.softbody.vertices[0].x > state.TANK_SIZE[0] - 10 and self.direction == 1:
             self.turn()
 
     def flee(self):

@@ -1,8 +1,5 @@
 import pygame
-
-TANK_SIZE = (200, 100)
-WINDOW_SIZE = (1200, 600)
-SCALE = WINDOW_SIZE[0] / TANK_SIZE[0]
+import state
 
 def distance(p1: tuple[float, float], p2: tuple[float, float]) -> float:
     x1, y1 = p1
@@ -11,4 +8,4 @@ def distance(p1: tuple[float, float], p2: tuple[float, float]) -> float:
 
 def get_relative_mouse_position() -> tuple[float, float]:
     x, y = pygame.mouse.get_pos()
-    return (x/SCALE, y/SCALE)
+    return (x/state.SCALE, y/state.SCALE)
