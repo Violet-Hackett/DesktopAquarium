@@ -2,6 +2,7 @@ import pygame
 from enum import Enum
 import state
 from runtime_resources import *
+import math
 
 class VertexFlag(Enum):
     NONE = 0
@@ -12,6 +13,10 @@ class VertexFlag(Enum):
     GOBY_HEAD = 3
     GOBY_ABDOMEN = 4
     GOBY_TAILFIN = 5
+    # Crab
+    CRAB_BODY = 6
+    CRAB_JOINT = 7
+    CRAB_CLAWTIP = 8
 
 class LinkFlag(Enum):
     NONE = 0
@@ -20,12 +25,16 @@ class LinkFlag(Enum):
     # Goby
     GOBY_NECK = 2
     GOBY_TAIL = 3
+    # Crab
+    CRAB_SHELL = 4
+    CRAB_LIMB = 5
 
 GROUND_BOUNCE = 0.5
 DRAG = 0.1
 LINK_TENSION = 2.0
 MOUSE_GRAB_RADIUS = 3
 MOUSE_WATER_FORCE = 1
+CONSTRAINT_ITERATIONS = 3
 
 class Link:
     def __init__(self, v1, v2, length: float, tension: float = LINK_TENSION, flag: LinkFlag = LinkFlag.NONE):
@@ -38,8 +47,8 @@ class Link:
     def constrain_distance(self):
         dx = self.v2.x - self.v1.x
         dy = self.v2.y - self.v1.y
-        distance = (dx**2 + dy**2)**(1/2)
-        fraction = ((self.length - distance) / distance) / self.tension
+        distance = max((dx**2 + dy**2)**(1/2), 1e-6)
+        fraction = ((self.length - distance) / distance) * self.tension
         dx *= fraction
         dy *= fraction
 
@@ -55,9 +64,13 @@ class Link:
             self.v2.x += dx
             self.v2.y += dy
 
+        self.v1.constrain_bounds()
+        self.v2.constrain_bounds()
+
 class Vertex:
-    def __init__(self, x: float, y: float, density: float, 
-                 links: list[Link], flag: VertexFlag = VertexFlag.NONE, anchor: bool = False):
+    def __init__(self, x: float, y: float, density: float, links: list[Link], 
+                 flag: VertexFlag = VertexFlag.NONE, anchor: bool = False, 
+                 boundary: pygame.Rect = pygame.Rect(0, 0, *state.TANK_SIZE)):
         self.x = x
         self.y = y
         self.lx = x
@@ -66,6 +79,7 @@ class Vertex:
         self.links = links
         self.flag = flag
         self.anchor = anchor
+        self.boundary = boundary
     
     def get_dx(self):
         return (self.x - self.lx) * DRAG
@@ -106,39 +120,68 @@ class Vertex:
         self.ly = self.y
         self.x += self.get_dx()
         self.y += self.get_dy()
-        self.y += state.GRAVITY * self.density
+
+        gravity_force = state.GRAVITY * self.density
+        self.y += gravity_force
 
         self.apply_water_force()
 
-    def constrain_bounds(self, boundary: pygame.Rect):
+    def constrain_bounds(self):
         if self.anchor:
             return
 
-        if(self.x < boundary.x):
-            self.x = boundary.x
-            self.lx = boundary.x - self.get_dx() * GROUND_BOUNCE
-            self.ly += (self.get_dx() / self.get_speed()) * self.get_dy()
-        elif(self.x > boundary.x + boundary.width):
-            self.x = boundary.x + boundary.width
-            self.lx = boundary.x + boundary.width + self.get_dx() * GROUND_BOUNCE
-            self.ly += (self.get_dx() / self.get_speed()) * self.get_dy()
-        if(self.y < boundary.y):
-            self.y = boundary.y
-            self.ly = boundary.y - self.get_dy() * GROUND_BOUNCE
-            self.lx += (self.get_dy() / self.get_speed()) * self.get_dx()
-        elif(self.y > boundary.y + boundary.height):
-            self.y = boundary.y + boundary.height
-            self.ly = boundary.y + boundary.height + self.get_dy() * GROUND_BOUNCE
-            self.lx += (self.get_dy() / self.get_speed()) * self.get_dx()
+        if(self.x < self.boundary.x):
+            self.x = self.boundary.x
+            self.lx = self.boundary.x - self.get_dx() * GROUND_BOUNCE
+        elif(self.x > self.boundary.x + self.boundary.width):
+            self.x = self.boundary.x + self.boundary.width
+            self.lx = self.boundary.x + self.boundary.width - self.get_dx() * GROUND_BOUNCE
+        if(self.y < self.boundary.y):
+            self.y = self.boundary.y
+            self.ly = self.boundary.y - self.get_dy() * GROUND_BOUNCE
+        elif(self.y > self.boundary.y + self.boundary.height):
+            self.y = self.boundary.y + self.boundary.height
+            self.ly = self.boundary.y + self.boundary.height - self.get_dy() * GROUND_BOUNCE
+
+class AngleConstraint:
+    def __init__(self, vertex_a, vertex_b, vertex_c, rest_angle: int, stiffness: float):
+        self.a = vertex_a
+        self.b = vertex_b
+        self.c = vertex_c
+        self.rest_angle = rest_angle
+        self.stiffness = stiffness
+
+    def apply(self):
+        rest_angle_radians = math.radians(self.rest_angle)
+        abx, aby = self.a.x - self.b.x, self.a.y - self.b.y
+        cbx, cby = self.c.x - self.b.x, self.c.y - self.b.y
+
+        dot = abx * cbx + aby * cby
+        mag = (abx*abx + aby*aby)**0.5 * (cbx*cbx + cby*cby)**0.5
+        if mag < 1e-6:
+            return
+
+        angle = math.acos(max(-1, min(1, dot / mag)))
+        diff = angle - rest_angle_radians
+
+        correction = diff * self.stiffness
+        self.a.x -= cbx * correction
+        self.a.y -= cby * correction
+        self.c.x -= abx * correction
+        self.c.y -= aby * correction
 
 class Softbody:
-    def __init__(self, vertices: list[Vertex], links: list[Link]):
+    def __init__(self, vertices: list[Vertex], links: list[Link], angles: list[AngleConstraint] = []):
         self.vertices = vertices
         self.links = links
+        self.angles = angles
 
-    def update(self, boundary: pygame.Rect):
-        for vertex in self.vertices:
-            vertex.update_independently()
-            vertex.constrain_bounds(boundary)
-        for link in self.links:
-            link.constrain_distance()
+    def update(self):
+        for i in range(CONSTRAINT_ITERATIONS):
+            for vertex in self.vertices:
+                vertex.update_independently()
+                vertex.constrain_bounds()
+            for link in self.links:
+                link.constrain_distance()
+            for angle in self.angles:
+                angle.apply()

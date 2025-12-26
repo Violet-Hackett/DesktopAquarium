@@ -52,13 +52,13 @@ class Seaweed(Organism):
                                     -0.05, [], VertexFlag.SEAWEED_BLADE)
             # Link up the vertices
             blade_vertex_1.links.append(Link(bladder_vertex, blade_vertex_1, 
-                                             SEAWEED_BLADDER_DISTANCE/2, 2.0, LinkFlag.SEAWEED_STIPE))
+                                             SEAWEED_BLADDER_DISTANCE/2, 0.5, LinkFlag.SEAWEED_STIPE))
             blade_vertex_2.links.append(Link(blade_vertex_1, blade_vertex_2, 
-                                             SEAWEED_BLADDER_DISTANCE/2, 2.0, LinkFlag.SEAWEED_STIPE))
+                                             SEAWEED_BLADDER_DISTANCE/2, 0.5, LinkFlag.SEAWEED_STIPE))
             bladder_vertices.append(bladder_vertex)
             if i != 0:
                 bladder_vertex.links.append(Link(bladder_vertices[i-1], bladder_vertex, 
-                                                 SEAWEED_BLADDER_DISTANCE, 2.0, LinkFlag.SEAWEED_STIPE))
+                                                 SEAWEED_BLADDER_DISTANCE, 0.7, LinkFlag.SEAWEED_STIPE))
                 if i != 1 and i % 2 == 0:
                     bladder_vertex.links.append(Link(bladder_vertices[i-2], bladder_vertex, 
                                                      SEAWEED_BLADDER_DISTANCE*SEAWEED_CURLINESS, 1.0))

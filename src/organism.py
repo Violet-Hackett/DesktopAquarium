@@ -48,9 +48,9 @@ class Organism:
 
         return surface
     
-    def update(self, tank_rect: pygame.Rect):
+    def update(self):
         self.update_ai()
-        self.softbody.update(tank_rect)
+        self.softbody.update()
     
     # Abstract method
     def update_ai(self):

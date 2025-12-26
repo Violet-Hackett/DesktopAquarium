@@ -29,7 +29,7 @@ class Tank:
 
     def update(self):
         for organism_instance in self.organisms:
-            organism_instance.update(self.rect)
+            organism_instance.update()
 
     def render_background(self):
         if self.check_buffer_update_status(BufferKey.BACKGROUND):
@@ -118,12 +118,12 @@ class Tank:
         surface.blit(self.render_background(), (0, 0))
 
         # Render organisms
-        surface.blit(self.render_organisms(), (0, 0))
+        surface.blit(self.render_organisms(overlay_frame), (0, 0))
 
         # Render foreground effects
         surface.blit(self.render_bubbles(), (0, 0))
         surface.blit(self.render_godrays(), (0, 0))
-        surface.blit(self.render_ui(), (0, 0))
+        #surface.blit(self.render_ui(), (0, 0))
 
         surface = pygame.transform.scale_by(surface, scale)
         return surface 

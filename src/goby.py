@@ -1,5 +1,5 @@
 from pygame import Rect
-from pygame.surface import Surface as Surface
+from pygame.surface import Surface
 from organism import *
 from softbody import *
 from runtime_resources import *
@@ -97,7 +97,6 @@ class Goby(Organism):
     @staticmethod
     def generate_random(root_position: tuple[float, float]):
         root_x, root_y = root_position
-
         size = DEFAULT_GOBY_SIZE + random.randint(-2, 2)
 
         # Generate vertices
@@ -107,9 +106,9 @@ class Goby(Organism):
         tailfin = Vertex(root_x + size, root_y, 0, [], VertexFlag.GOBY_TAILFIN)
 
         # Link vertices
-        neck = Link(head, abdomen, size/3, flag=LinkFlag.GOBY_NECK, tension=1.5)
-        calf = Link(abdomen, knee, size*2/3, tension=1.5)
-        tail = Link(knee, tailfin, size/3, flag=LinkFlag.GOBY_TAIL, tension=1.5)
+        neck = Link(head, abdomen, size/3, flag=LinkFlag.GOBY_NECK, tension=0.66)
+        calf = Link(abdomen, knee, size*2/3, tension=0.66)
+        tail = Link(knee, tailfin, size/3, flag=LinkFlag.GOBY_TAIL, tension=0.66)
 
         vertices = [head, abdomen, knee, tailfin]
         links = [neck, calf, tail]
