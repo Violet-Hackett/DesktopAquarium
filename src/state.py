@@ -11,3 +11,5 @@ TEXTURES_FP = str(DESKTOP_AQUARIUM_FP) + "\\bin\\textures"
 
 FPS = 15
 FRAME_DELAY_MS = int(1000 / FPS)
+
+GRAVITY = 1

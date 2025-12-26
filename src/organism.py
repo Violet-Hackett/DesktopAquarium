@@ -19,6 +19,10 @@ class Organism:
     def __init__(self, softbody: Softbody):
         self.softbody = softbody
 
+    def root_position(self) -> tuple[float, float]:
+        return (self.softbody.vertices[0].x,
+                self.softbody.vertices[0].y)
+
     # Abstract method
     def render(self, tank_rect: pygame.Rect) -> pygame.Surface:
         raise NotImplementedError()
@@ -56,3 +60,7 @@ class Organism:
     @staticmethod
     def generate_random(root_position: tuple[float, float]):
         raise NotImplementedError()
+    
+    # Abstract method
+    def bubble_spawn_chance(self) -> float | None:
+        return None

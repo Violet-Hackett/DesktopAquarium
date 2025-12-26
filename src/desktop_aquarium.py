@@ -15,7 +15,7 @@ def save_and_quit():
 DEBUG_INFO_FREQUENCY = 8
 
 pygame.init()
-root = pygame.display.set_mode(state.WINDOW_SIZE)#, pygame.NOFRAME)
+root = pygame.display.set_mode(state.WINDOW_SIZE, pygame.NOFRAME)
 
 running = True
 clock = pygame.time.Clock()
@@ -44,7 +44,7 @@ while running:
 
     # Update and render tank
     selected_tank.update()
-    root.blit(selected_tank.render(state.SCALE, render_procedural_texture=True, overlay_frame=False), (0, 0))
+    root.blit(selected_tank.render(state.SCALE, overlay_frame=False), (0, 0))
 
     clock.tick()
     state.frame_count += 1

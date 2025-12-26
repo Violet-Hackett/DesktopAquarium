@@ -19,6 +19,7 @@ class Tank:
         self.organisms = organisms
         self.buffers: dict[BufferKey, pygame.Surface] = {}
         self.godrays: list[Godray] = []
+        self.bubbles: list[Bubble] = []
 
     def update(self):
         self.apply_mouse_water_forces()
@@ -51,7 +52,7 @@ class Tank:
     def render_godrays(self):
         surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
         
-        if random.random() < GODRAY_FREQUENCY:
+        if state.frame_count % GODRAY_FREQUENCY == 0:
             self.godrays.append(Godray(random.random()/10, (biased_random_beta(strength=10)-0.5)*2))
 
         new_godrays = []
@@ -65,23 +66,50 @@ class Tank:
         surface = pygame.transform.box_blur(surface, GODRAY_BLUR)
         return surface
 
+    def render_bubbles(self):
+        surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        
+        if state.frame_count % AMBIENT_BUBBLE_FREQUENCY == 0:
+            self.bubbles.append(Bubble(random.random()*MAX_BUBBLE_SIZE + 0.1, 
+                                       random.randint(0, state.TANK_SIZE[0]), 
+                                       state.TANK_SIZE[1]+MAX_BUBBLE_SIZE))
+        new_bubbles = []
+        for bubble in self.bubbles:
+            if bubble.y + bubble.radius > 0:
+                bubble.render_onto(surface)
+                new_bubbles.append(bubble)
+            bubble.update()
+                    
+        self.bubbles = new_bubbles
+        return surface
     
-    def render(self, scale: float, render_procedural_texture: bool = True, 
-               overlay_frame: bool = False) -> pygame.Surface:
+    def render_organisms(self, overlay_frame: bool = False) -> pygame.Surface:
+        surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        # Render organisms
+        for organism_instance in self.organisms:
+            surface.blit(organism_instance.render(self.rect), (0, 0))
 
+            # Overlay softbody frame if enabled
+            if overlay_frame:
+                surface.blit(organism_instance.render_frame(self.rect), (0, 0))
+
+            # Spawn bubbles
+            bubble_chance = organism_instance.bubble_spawn_chance()
+            if bubble_chance and bubble_chance > random.random():
+                self.bubbles.append(Bubble(1, *organism_instance.root_position()))
+        return surface
+    
+    def render(self, scale: float, overlay_frame: bool = False) -> pygame.Surface:
         surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
 
         # Render background
         surface.blit(self.render_background(), (0, 0))
 
         # Render organisms
-        for organism_instance in self.organisms:
-            if render_procedural_texture:
-                surface.blit(organism_instance.render(self.rect), (0, 0))
-            if overlay_frame:
-                surface.blit(organism_instance.render_frame(self.rect), (0, 0))
+        surface.blit(self.render_organisms(), (0, 0))
 
         # Render foreground effects
+        surface.blit(self.render_bubbles(), (0, 0))
         surface.blit(self.render_godrays(), (0, 0))
 
         surface = pygame.transform.scale_by(surface, scale)

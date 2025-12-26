@@ -2,6 +2,29 @@ import pygame
 import state
 import math
 
+AMBIENT_BUBBLE_FREQUENCY = 15 # Frames to wait between spawning bubbles
+BUBBLE_DENSITY = 0.5
+BUBBLE_COLOR = (255, 255, 255)
+BUBBLE_ALPHA = 10
+MAX_BUBBLE_SIZE = 3
+class Bubble:
+    def __init__(self, radius: float, x: float, y: float):
+        self.radius = radius
+        self.x = x
+        self.y = y
+
+    def position(self) -> tuple[float, float]:
+        return (self.x, self.y)
+
+    def update(self):
+        self.y -= (1/BUBBLE_DENSITY)*state.GRAVITY
+
+    def render_onto(self, surface: pygame.Surface):
+        # Bubble interior
+        pygame.draw.circle(surface, (*BUBBLE_COLOR, BUBBLE_ALPHA), self.position(), self.radius)
+        # Bubble outline
+        pygame.draw.circle(surface, (*BUBBLE_COLOR, min(255, BUBBLE_ALPHA*2)), self.position(), self.radius, 1)
+
 LIGHT_SOURCE = (state.TANK_SIZE[0]/3, -state.TANK_SIZE[1]*2)
 GODRAY_FREQUENCY = 1 # Frames to wait between spawning godrays
 GODRAY_LIFESPAN = 15

@@ -1,5 +1,6 @@
 import pygame
 from enum import Enum
+import state
 
 class VertexFlag(Enum):
     NONE = 0
@@ -19,7 +20,6 @@ class LinkFlag(Enum):
     GOBY_NECK = 2
     GOBY_TAIL = 3
 
-GRAVITY = 1
 GROUND_BOUNCE = 0.5
 DRAG = 0.1
 LINK_TENSION = 2.0
@@ -81,7 +81,7 @@ class Vertex:
         self.ly = self.y
         self.x += self.get_dx()
         self.y += self.get_dy()
-        self.y += GRAVITY * self.density
+        self.y += state.GRAVITY * self.density
 
     def constrain_bounds(self, boundary: pygame.Rect):
         if self.anchored:

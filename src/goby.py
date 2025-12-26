@@ -7,10 +7,12 @@ import state
 
 DEFAULT_GOBY_SIZE = 6
 GOBY_EYE_COLOR = pygame.Color(255, 255, 255)
-GOBY_FIN_COLOR = pygame.Color(0, 0, 0, 100)
+GOBY_FIN_COLOR = pygame.Color(0, 0, 0, 150)
 GOBY_RESTING_SPEED = 0.6
 GOBY_FLEE_RADIUS = 30
+GOBY_BUBBLE_SPAWN_CHANCE = 0.05
 class Goby(Organism):
+
     def __init__(self, softbody: Softbody, size: float):
         super().__init__(softbody)
         self.size = size
@@ -27,8 +29,7 @@ class Goby(Organism):
             self.flee()
 
     def update_ai_status(self):
-        if distance((self.softbody.vertices[0].x, self.softbody.vertices[0].y), 
-                    (get_relative_mouse_position())) < GOBY_FLEE_RADIUS:
+        if distance(self.root_position(), (get_relative_mouse_position())) < GOBY_FLEE_RADIUS:
             self.ai_status = AIStatus.FLEEING
         else:
             self.ai_status = AIStatus.WANDERING
@@ -38,16 +39,15 @@ class Goby(Organism):
         self.swim(self.speed)
         if random.random() < 0.01 and random.random() < 0.2:
             self.turn()
-        if self.softbody.vertices[0].x < 10 and self.direction == -1:
+        if self.root_position()[0] < 10 and self.direction == -1:
             self.turn()
-        elif self.softbody.vertices[0].x > state.TANK_SIZE[0] - 10 and self.direction == 1:
+        elif self.root_position()[0] > state.TANK_SIZE[0] - 10 and self.direction == 1:
             self.turn()
 
     def flee(self):
-        self.speed = 5 - distance((self.softbody.vertices[0].x, self.softbody.vertices[0].y), 
-                    (get_relative_mouse_position()))/10
+        self.speed = 5 - distance(self.root_position(), (get_relative_mouse_position()))/10
         flee_direction = 0
-        if get_relative_mouse_position()[0] < self.softbody.vertices[0].x:
+        if get_relative_mouse_position()[0] < self.root_position()[0]:
             flee_direction = 1
         else:
             flee_direction = -1
@@ -61,7 +61,6 @@ class Goby(Organism):
         self.softbody.vertices[2].y += self.fin_position
         self.softbody.vertices[3].y += self.fin_position
         self.softbody.vertices[0].y -= self.fin_position
-        #self.speed = 0.0
 
     def swim(self, speed: float):
         self.softbody.vertices[0].x += self.direction * (speed*2)
@@ -116,3 +115,6 @@ class Goby(Organism):
         links = [neck, calf, tail]
         goby_softbody = Softbody(vertices, links)
         return Goby(goby_softbody, size)
+    
+    def bubble_spawn_chance(self) -> float | None:
+        return GOBY_BUBBLE_SPAWN_CHANCE
