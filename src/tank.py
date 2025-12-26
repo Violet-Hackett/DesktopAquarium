@@ -11,34 +11,29 @@ class BufferKey(Enum):
     STATIC_ENVIORMENT = 1
     UI = 2
 
-MOUSE_WATER_FORCE = 2
 WATER_ALPHA = 120
+TANK_BORDER_COLOR = (255, 255, 255, 50)
 class Tank:
     def __init__(self, rect: pygame.Rect, organisms: list[organism.Organism]):
         self.rect = rect
         self.organisms = organisms
         self.buffers: dict[BufferKey, pygame.Surface] = {}
+        self.buffer_update_flags: list[BufferKey] = []
         self.godrays: list[Godray] = []
         self.bubbles: list[Bubble] = []
 
+    def check_buffer_update_status(self, buffer_key: BufferKey):
+        is_in_buffers = buffer_key in self.buffers.keys()
+        flagged_for_update = buffer_key in self.buffer_update_flags
+        return (not is_in_buffers) or flagged_for_update
+
     def update(self):
-        self.apply_mouse_water_forces()
         for organism_instance in self.organisms:
             organism_instance.update(self.rect)
 
-    def apply_mouse_water_forces(self):
-        vx, vy = pygame.mouse.get_rel()
-        for organism_instance in self.organisms:
-            for vertex in organism_instance.softbody.vertices:
-                if vertex.anchored:
-                    continue
-                mouse_distance = distance(get_relative_mouse_position(), (vertex.x, vertex.y))
-                MWF = MOUSE_WATER_FORCE
-                vertex.x += max(-MWF, min(MWF, vx * MWF / mouse_distance**2))
-                vertex.y += max(-MWF, min(MWF, vy * MWF / mouse_distance**2))
-
     def render_background(self):
-        if BufferKey.BACKGROUND not in self.buffers.keys():
+        if self.check_buffer_update_status(BufferKey.BACKGROUND):
+
             surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
             background_image = pygame.image.load(state.TEXTURES_FP + "\\water_background.png")
             background_image = pygame.transform.scale_by(background_image, 1/state.SCALE)
@@ -46,6 +41,9 @@ class Tank:
             background_offset = (-(background_image.get_width() - state.TANK_SIZE[0])/2,
                                  -(background_image.get_height() - state.TANK_SIZE[1])/2)
             surface.blit(background_image, background_offset)
+
+            if BufferKey.UI in self.buffer_update_flags:
+                self.buffer_update_flags.remove(BufferKey.UI)
             self.buffers[BufferKey.BACKGROUND] = surface
         return self.buffers[BufferKey.BACKGROUND]
     
@@ -97,7 +95,21 @@ class Tank:
             bubble_chance = organism_instance.bubble_spawn_chance()
             if bubble_chance and bubble_chance > random.random():
                 self.bubbles.append(Bubble(1, *organism_instance.root_position()))
+
         return surface
+    
+    def render_ui(self) -> pygame.Surface:
+        if self.check_buffer_update_status(BufferKey.UI):
+            surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+
+            # Tank border
+            border_position = (0, 0, state.TANK_SIZE[0], state.TANK_SIZE[1])
+            pygame.draw.rect(surface, TANK_BORDER_COLOR, border_position, 1)
+
+            self.buffers[BufferKey.UI] = surface
+            if BufferKey.UI in self.buffer_update_flags:
+                self.buffer_update_flags.remove(BufferKey.UI)
+        return self.buffers[BufferKey.UI]
     
     def render(self, scale: float, overlay_frame: bool = False) -> pygame.Surface:
         surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
@@ -111,6 +123,7 @@ class Tank:
         # Render foreground effects
         surface.blit(self.render_bubbles(), (0, 0))
         surface.blit(self.render_godrays(), (0, 0))
+        surface.blit(self.render_ui(), (0, 0))
 
         surface = pygame.transform.scale_by(surface, scale)
         return surface 

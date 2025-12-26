@@ -32,7 +32,7 @@ while running:
     pygame.time.wait(state.FRAME_DELAY_MS)
 
     # Check for user events
-    for event in pygame.event.get():
+    for event in get_events():
         if event.type == pygame.KEYDOWN:    
             if event.key == pygame.K_ESCAPE:  
                 save_and_quit()
@@ -49,6 +49,6 @@ while running:
     clock.tick()
     state.frame_count += 1
     if state.frame_count % DEBUG_INFO_FREQUENCY == 0:
-        print("fps: ", clock.get_fps())
+        print("fps: ", round(clock.get_fps(), 1))
 
     pygame.display.flip()

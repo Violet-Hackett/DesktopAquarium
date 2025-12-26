@@ -1,6 +1,7 @@
 import pygame
 from enum import Enum
 import state
+from runtime_resources import *
 
 class VertexFlag(Enum):
     NONE = 0
@@ -23,6 +24,8 @@ class LinkFlag(Enum):
 GROUND_BOUNCE = 0.5
 DRAG = 0.1
 LINK_TENSION = 2.0
+MOUSE_GRAB_RADIUS = 3
+MOUSE_WATER_FORCE = 1
 
 class Link:
     def __init__(self, v1, v2, length: float, tension: float = LINK_TENSION, flag: LinkFlag = LinkFlag.NONE):
@@ -40,10 +43,10 @@ class Link:
         dx *= fraction
         dy *= fraction
 
-        if self.v1.anchored:
+        if self.v1.anchor:
             self.v2.x += dx*2
             self.v2.y += dy*2
-        elif self.v2.anchored:
+        elif self.v2.anchor:
             self.v1.x -= dx*2
             self.v1.y -= dy*2
         else:
@@ -54,7 +57,7 @@ class Link:
 
 class Vertex:
     def __init__(self, x: float, y: float, density: float, 
-                 links: list[Link], flag: VertexFlag = VertexFlag.NONE, anchored: bool = False):
+                 links: list[Link], flag: VertexFlag = VertexFlag.NONE, anchor: bool = False):
         self.x = x
         self.y = y
         self.lx = x
@@ -62,7 +65,7 @@ class Vertex:
         self.density = density
         self.links = links
         self.flag = flag
-        self.anchored = anchored
+        self.anchor = anchor
     
     def get_dx(self):
         return (self.x - self.lx) * DRAG
@@ -72,19 +75,43 @@ class Vertex:
     
     def get_speed(self):
         return (self.get_dx()**2 + self.get_dy()**2)**(1/2)
+    
+    def apply_water_force(self):
+        vx, vy = get_mouse_velocity()
+        mouse_distance = distance(get_relative_mouse_position(), (self.x, self.y))
+        MWF = MOUSE_WATER_FORCE
+        self.x += max(-MWF, min(MWF, vx * MWF / (mouse_distance**2 + .1)))
+        self.y += max(-MWF, min(MWF, vy * MWF / (mouse_distance**2 + .1)))
 
     def update_independently(self):
-        if self.anchored:
+        mouse_pressed = get_mouse_presses()[0]
+        mouse_pos = get_relative_mouse_position()
+
+        # Grab vertex if mouse is down and no vertex is grabbed
+        if mouse_pressed and not state.vertex_grabbed:
+            if distance((self.x, self.y), mouse_pos) < MOUSE_GRAB_RADIUS:
+                state.vertex_grabbed = self
+
+        # Snap grabbed vertex to mouse position
+        if state.vertex_grabbed == self:
+            if mouse_pressed:
+                self.x, self.y = mouse_pos
+            else:
+                state.vertex_grabbed = None
+        
+        if self.anchor:
             return
-    
+
         self.lx = self.x
         self.ly = self.y
         self.x += self.get_dx()
         self.y += self.get_dy()
         self.y += state.GRAVITY * self.density
 
+        self.apply_water_force()
+
     def constrain_bounds(self, boundary: pygame.Rect):
-        if self.anchored:
+        if self.anchor:
             return
 
         if(self.x < boundary.x):
@@ -92,16 +119,16 @@ class Vertex:
             self.lx = boundary.x - self.get_dx() * GROUND_BOUNCE
             self.ly += (self.get_dx() / self.get_speed()) * self.get_dy()
         elif(self.x > boundary.x + boundary.width):
-            self.x = boundary.x
-            self.lx = boundary.x + self.get_dx() * GROUND_BOUNCE
+            self.x = boundary.x + boundary.width
+            self.lx = boundary.x + boundary.width + self.get_dx() * GROUND_BOUNCE
             self.ly += (self.get_dx() / self.get_speed()) * self.get_dy()
         if(self.y < boundary.y):
             self.y = boundary.y
             self.ly = boundary.y - self.get_dy() * GROUND_BOUNCE
             self.lx += (self.get_dy() / self.get_speed()) * self.get_dx()
         elif(self.y > boundary.y + boundary.height):
-            self.y = boundary.y
-            self.ly = boundary.y + self.get_dy() * GROUND_BOUNCE
+            self.y = boundary.y + boundary.height
+            self.ly = boundary.y + boundary.height + self.get_dy() * GROUND_BOUNCE
             self.lx += (self.get_dy() / self.get_speed()) * self.get_dx()
 
 class Softbody:

@@ -15,3 +15,33 @@ def biased_random_beta(toward=0.5, strength=5.0):
     a = 1 + toward * strength
     b = 1 + (1 - toward) * strength
     return random.betavariate(a, b)
+
+event_cache: list[pygame.Event] = []
+events_last_updated = 0
+def get_events() -> list[pygame.Event]:
+    global event_cache
+    global events_last_updated
+    if events_last_updated != state.frame_count:
+        event_cache = pygame.event.get()
+        events_last_updated = state.frame_count
+    return event_cache
+
+mouse_press_cache: tuple[bool, bool, bool] = (False, False, False)
+mouse_press_cache_last_updated = 0
+def get_mouse_presses() -> tuple[bool, bool, bool]:
+    global mouse_press_cache
+    global mouse_press_cache_last_updated
+    if mouse_press_cache_last_updated != state.frame_count:
+        mouse_press_cache = pygame.mouse.get_pressed()
+        mouse_press_cache_last_updated = state.frame_count
+    return mouse_press_cache
+
+mouse_velocity: tuple[int, int] = (0, 0)
+mouse_velocity_last_updated = 0
+def get_mouse_velocity() -> tuple[int, int]:
+    global mouse_velocity
+    global mouse_velocity_last_updated
+    if mouse_velocity_last_updated != state.frame_count:
+        mouse_velocity = pygame.mouse.get_rel()
+        mouse_velocity_last_updated = state.frame_count
+    return mouse_velocity

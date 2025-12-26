@@ -63,7 +63,7 @@ class Seaweed(Organism):
                     bladder_vertex.links.append(Link(bladder_vertices[i-2], bladder_vertex, 
                                                      SEAWEED_BLADDER_DISTANCE*SEAWEED_CURLINESS, 1.0))
             else:
-                bladder_vertex.anchored = True
+                bladder_vertex.anchor = True
 
             # Store vertices and links
             vertices += [bladder_vertex, blade_vertex_1, blade_vertex_2]
