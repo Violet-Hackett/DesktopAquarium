@@ -17,6 +17,10 @@ class VertexFlag(Enum):
     CRAB_BODY = 6
     CRAB_JOINT = 7
     CRAB_CLAWTIP = 8
+    # Snail
+    SNAIL_BODY = 9
+    SNAIL_SHELL_CENTER = 10
+    SNAIL_EYE = 11
 
 class LinkFlag(Enum):
     NONE = 0
@@ -28,6 +32,9 @@ class LinkFlag(Enum):
     # Crab
     CRAB_SHELL = 4
     CRAB_LIMB = 5
+    # Snail
+    SNAIL_FLESH = 6
+    SNAIL_SHELL = 7
 
 GROUND_BOUNCE = 0.5
 DRAG = 0.1
@@ -80,14 +87,18 @@ class Vertex:
         self.flag = flag
         self.anchor = anchor
         self.boundary = boundary
+        self.gravity: tuple[float, float] = (0, state.GRAVITY)
+
+    def x_y(self) -> tuple[float, float]:
+        return (self.x, self.y)
     
-    def get_dx(self):
+    def get_dx(self) -> float:
         return (self.x - self.lx) * DRAG
     
-    def get_dy(self):
+    def get_dy(self) -> float:
         return (self.y - self.ly) * DRAG
     
-    def get_speed(self):
+    def get_speed(self) -> float:
         return (self.get_dx()**2 + self.get_dy()**2)**(1/2)
     
     def apply_water_force(self):
@@ -121,8 +132,10 @@ class Vertex:
         self.x += self.get_dx()
         self.y += self.get_dy()
 
-        gravity_force = state.GRAVITY * self.density
-        self.y += gravity_force
+        gravity_force_x = self.gravity[0] * self.density
+        gravity_force_y = self.gravity[1] * self.density
+        self.x += gravity_force_x
+        self.y += gravity_force_y
 
         self.apply_water_force()
 

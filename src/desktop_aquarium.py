@@ -5,6 +5,7 @@ from organism import *
 from seaweed import Seaweed
 from goby import Goby
 from crab import Crab
+from snail import Snail
 from runtime_resources import *
 from graphics_resources import *
 import state
@@ -25,7 +26,8 @@ organisms: list[Organism] = []
 organisms.append(Goby.generate_random((80, 20)))
 organisms.append(Goby.generate_random((80, 10)))
 organisms.append(Goby.generate_random((80, 30)))
-organisms.append(Crab.generate_random((50, 50)))
+organisms.append(Snail.generate_random((50, 100)))
+organisms.append(Snail.generate_random((30, 100)))
 organisms += [Seaweed.generate_random((x, state.TANK_SIZE[1]-1)) for x in range(85, 125, 10)]
 selected_tank = Tank(pygame.Rect(0, 0, state.TANK_SIZE[0], state.TANK_SIZE[1]), organisms)
 

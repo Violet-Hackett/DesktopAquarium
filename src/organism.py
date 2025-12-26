@@ -13,6 +13,7 @@ class AIStatus(Enum):
     NONE = 0
     WANDERING = 1
     FLEEING = 2
+    HIDING = 3
 
 # Abstract class
 class Organism:

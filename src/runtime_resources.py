@@ -1,6 +1,7 @@
 import pygame
 import state
 import random
+from enum import Enum
 
 def distance(p1: tuple[float, float], p2: tuple[float, float]) -> float:
     x1, y1 = p1
@@ -45,3 +46,20 @@ def get_mouse_velocity() -> tuple[int, int]:
         mouse_velocity = pygame.mouse.get_rel()
         mouse_velocity_last_updated = state.frame_count
     return mouse_velocity
+
+class Wall(Enum):
+    RIGHT = 0
+    LEFT = 1
+    TOP = 2
+    BOTTOM = 3
+
+def wall_to_direction(wall: Wall) -> tuple[float, float]:
+    match wall:
+        case Wall.RIGHT:
+            return (0, -1)
+        case Wall.LEFT:
+            return (0, 1)
+        case Wall.TOP:
+            return (-1, 0)
+        case Wall.BOTTOM:
+            return (1, 0)
