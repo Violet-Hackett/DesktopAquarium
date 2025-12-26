@@ -1,18 +1,29 @@
 from pathlib import Path
-import pygame
+from enum import Enum
 
-TANK_SIZE = (200, 100)
-WINDOW_SIZE = (1200, 600)
-SCALE = WINDOW_SIZE[0] / TANK_SIZE[0]
+# Element sizes
+TANK_SIZE: tuple[int, int] = (200, 100)
+SCALE: int = 6
+UI_HEIGHT: int = 11
+WINDOW_SIZE: tuple[int, int] = (TANK_SIZE[0] * SCALE, (TANK_SIZE[1] + UI_HEIGHT) * SCALE)
+WINDOW_POSITION: tuple[int, int] = (0, 0)
 
-frame_count: int = 0
-
+# Filepaths
 DESKTOP_AQUARIUM_FP = Path(__file__).resolve().parent.parent
 TEXTURES_FP = str(DESKTOP_AQUARIUM_FP) + "\\bin\\textures"
 
-FPS = 15
+# Framerate control
+FPS: int = 15
 FRAME_DELAY_MS = int(1000 / FPS)
+frame_count: int = 0
 
-GRAVITY = 1
+# Buffer update scheduling
+class BufferKey(Enum):
+    BACKGROUND = 0
+    STATIC_ENVIORMENT = 1
+    UI = 2
+buffer_update_flags: list[BufferKey] = []
 
+# Physics
+GRAVITY: float = 1
 vertex_grabbed = None

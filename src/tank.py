@@ -1,36 +1,59 @@
 import pygame
 import organism
-from runtime_resources import *
+from resources import *
 from graphics_resources import *
 from enum import Enum
 from effects import *
 import random
-
-class BufferKey(Enum):
-    BACKGROUND = 0
-    STATIC_ENVIORMENT = 1
-    UI = 2
+import subprocess
+from types import MethodType
+from state import BufferKey
+import os
 
 WATER_ALPHA = 120
 TANK_BORDER_COLOR = (255, 255, 255, 50)
+UI_BASE_COLOR = (17, 17, 17)
+UI_HIGHLIGHT_COLOR = (30, 30, 30)
+UI_SHADOW_COLOR = (0, 0, 0)
+UI_INSET_COLOR = (10, 10, 10)
 class Tank:
     def __init__(self, rect: pygame.Rect, organisms: list[organism.Organism]):
         self.rect = rect
         self.organisms = organisms
         self.buffers: dict[BufferKey, pygame.Surface] = {}
-        self.buffer_update_flags: list[BufferKey] = []
         self.godrays: list[Godray] = []
         self.bubbles: list[Bubble] = []
+        self.ui_elements: dict[UIElementKey, UIElement] = {}
 
     def check_buffer_update_status(self, buffer_key: BufferKey):
         is_in_buffers = buffer_key in self.buffers.keys()
-        flagged_for_update = buffer_key in self.buffer_update_flags
+        flagged_for_update = buffer_key in state.buffer_update_flags
         return (not is_in_buffers) or flagged_for_update
 
     def update(self):
         for organism_instance in self.organisms:
             organism_instance.update()
+        self.update_ui()
+        state.buffer_update_flags = []
+    
+    def render(self, scale: float, overlay_frame: bool = False) -> pygame.Surface:
+        ui_surface_rect = (state.TANK_SIZE[0], state.TANK_SIZE[1] + state.UI_HEIGHT)
+        surface = pygame.Surface(ui_surface_rect, pygame.SRCALPHA)
 
+        # Render background
+        surface.blit(self.render_background(), (0, 0))
+
+        # Render organisms
+        surface.blit(self.render_organisms(overlay_frame), (0, 0))
+
+        # Render foreground effects
+        surface.blit(self.render_bubbles(), (0, 0))
+        surface.blit(self.render_godrays(), (0, 0))
+        surface.blit(self.render_ui(), (0, 0))
+
+        surface = pygame.transform.scale_by(surface, scale)
+        return surface 
+    
     def render_background(self):
         if self.check_buffer_update_status(BufferKey.BACKGROUND):
 
@@ -42,8 +65,6 @@ class Tank:
                                  -(background_image.get_height() - state.TANK_SIZE[1])/2)
             surface.blit(background_image, background_offset)
 
-            if BufferKey.UI in self.buffer_update_flags:
-                self.buffer_update_flags.remove(BufferKey.UI)
             self.buffers[BufferKey.BACKGROUND] = surface
         return self.buffers[BufferKey.BACKGROUND]
     
@@ -100,30 +121,83 @@ class Tank:
     
     def render_ui(self) -> pygame.Surface:
         if self.check_buffer_update_status(BufferKey.UI):
-            surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+            ui_surface_rect = (state.TANK_SIZE[0], state.TANK_SIZE[1] + state.UI_HEIGHT)
+            surface = pygame.Surface(ui_surface_rect, pygame.SRCALPHA)
 
             # Tank border
-            border_position = (0, 0, state.TANK_SIZE[0], state.TANK_SIZE[1])
-            pygame.draw.rect(surface, TANK_BORDER_COLOR, border_position, 1)
+            tank_border_rect= (0, 0, state.TANK_SIZE[0], state.TANK_SIZE[1] + 1)
+            pygame.draw.rect(surface, TANK_BORDER_COLOR, tank_border_rect, 1)
+
+            # UI Base and border
+            ui_base_rect = (0, state.TANK_SIZE[1], state.TANK_SIZE[0], state.UI_HEIGHT)
+            pygame.draw.rect(surface, UI_BASE_COLOR, ui_base_rect)
+            pygame.draw.rect(surface, UI_SHADOW_COLOR, ui_base_rect, 1)
+            pygame.draw.line(surface, UI_HIGHLIGHT_COLOR, (0, state.TANK_SIZE[1]), state.TANK_SIZE)
+
+            # UI Grip
+            ui_grip_width = max(23, min(111, state.TANK_SIZE[0] / 2)) # Clamp grip width to [23-111]
+            ui_grip_rect = pygame.Rect(state.TANK_SIZE[0]/2 - ui_grip_width/2, state.TANK_SIZE[1] + 2,
+                            ui_grip_width, 7)
+            self.ui_grip_rect = ui_grip_rect
+            pygame.draw.rect(surface, UI_INSET_COLOR, ui_grip_rect, border_radius=2)
+            pygame.draw.rect(surface, UI_SHADOW_COLOR, ui_grip_rect, border_radius=2, width=1)
+            pygame.draw.line(surface, UI_HIGHLIGHT_COLOR, (ui_grip_rect.x+1, ui_grip_rect.bottom-1),
+                             (ui_grip_rect.right-2, ui_grip_rect.bottom-1))
+            carry_label = pygame.image.load(state.TEXTURES_FP + "\\carry_label.png").convert_alpha()
+            carry_label.fill(UI_HIGHLIGHT_COLOR, special_flags=pygame.BLEND_RGB_ADD)
+            carry_label_position = (state.TANK_SIZE[0]/2 - carry_label.width/2, state.TANK_SIZE[1] + 3)
+            surface.blit(carry_label, carry_label_position)
+
+            # Add the UI grip as an active UI element
+            self.ui_elements[UIElementKey.GRIP] = UIElement(ui_grip_rect, self.drag_window)
 
             self.buffers[BufferKey.UI] = surface
-            if BufferKey.UI in self.buffer_update_flags:
-                self.buffer_update_flags.remove(BufferKey.UI)
+
         return self.buffers[BufferKey.UI]
     
-    def render(self, scale: float, overlay_frame: bool = False) -> pygame.Surface:
-        surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+    def drag_window(self):
+        vx, vy = get_mouse_velocity()
+        wx, wy = state.WINDOW_POSITION
+        new_window_position = (wx + vx, wy + vy)
+        pygame.display.set_window_position(new_window_position)
+        state.WINDOW_POSITION = new_window_position
+        print(new_window_position)
 
-        # Render background
-        surface.blit(self.render_background(), (0, 0))
+    def update_ui(self):
+        if get_mouse_presses()[0]:
+            for ui_element in self.ui_elements.values():
+                if ui_element.mouse_collision():
+                    ui_element.apply()
 
-        # Render organisms
-        surface.blit(self.render_organisms(overlay_frame), (0, 0))
+        
+class UIElementKey(Enum):
+    GRIP = 0
 
-        # Render foreground effects
-        surface.blit(self.render_bubbles(), (0, 0))
-        surface.blit(self.render_godrays(), (0, 0))
-        #surface.blit(self.render_ui(), (0, 0))
+class UIElement:
+    def __init__(self, hitbox: pygame.Rect, function_reference: MethodType, is_button: bool = False, 
+                 flags_ui_update: bool = False):
+        self.hitbox = hitbox
+        self.function_reference = function_reference
+        self.is_button = is_button
+        self.flags_ui_update = flags_ui_update
+        self.last_frame_pressed = 0
+    
+    def apply(self):
+        return_value = None
 
-        surface = pygame.transform.scale_by(surface, scale)
-        return surface 
+        if self.is_button:
+            # Check to see if more than one frame as elapsed since the button was being pressed
+            if state.frame_count > self.last_frame_pressed + 1:
+                return_value = self.function_reference.__call__()
+            self.last_frame_pressed = state.frame_count
+        else:
+            return_value = self.function_reference.__call__()
+
+        # Schedule UI to be updated if the UI Element specifies to do so
+        if self.flags_ui_update:
+            state.buffer_update_flags.append(BufferKey.UI)
+
+        return return_value
+    
+    def mouse_collision(self):
+        return self.hitbox.collidepoint(get_relative_mouse_position())

@@ -89,13 +89,13 @@ class Snail(Organism):
     def wander(self):
         self.crawl()
         head = self.softbody.vertices[0]
-        if distance(head.x_y(), state.TANK_SIZE) < SNAIL_SENSORY_RADIUS:
+        if distance(head.x_y(), state.TANK_SIZE) < SNAIL_SENSORY_RADIUS/2:
             self.lift_head((0, -1.5))
-        elif distance(head.x_y(), (state.TANK_SIZE[0], 0)) < SNAIL_SENSORY_RADIUS:
+        elif distance(head.x_y(), (state.TANK_SIZE[0], 0)) < SNAIL_SENSORY_RADIUS/2:
             self.lift_head((-1.5, 0))
-        elif distance(head.x_y(), (0, 0)) < SNAIL_SENSORY_RADIUS:
+        elif distance(head.x_y(), (0, 0)) < SNAIL_SENSORY_RADIUS/2:
             self.lift_head((0, 1.5))
-        elif distance(head.x_y(), (0, state.TANK_SIZE[1])) < SNAIL_SENSORY_RADIUS:
+        elif distance(head.x_y(), (0, state.TANK_SIZE[1])) < SNAIL_SENSORY_RADIUS/2:
             self.lift_head((1.5, 0))
 
 

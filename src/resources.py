@@ -2,6 +2,7 @@ import pygame
 import state
 import random
 from enum import Enum
+import os
 
 def distance(p1: tuple[float, float], p2: tuple[float, float]) -> float:
     x1, y1 = p1
@@ -63,3 +64,4 @@ def wall_to_direction(wall: Wall) -> tuple[float, float]:
             return (-1, 0)
         case Wall.BOTTOM:
             return (1, 0)
+        

@@ -2,7 +2,7 @@ import pygame
 import win32gui
 import win32ui
 import win32con
-from runtime_resources import *
+from resources import *
 import ctypes
 import state
 

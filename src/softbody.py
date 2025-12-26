@@ -1,7 +1,7 @@
 import pygame
 from enum import Enum
 import state
-from runtime_resources import *
+from resources import *
 import math
 
 class VertexFlag(Enum):

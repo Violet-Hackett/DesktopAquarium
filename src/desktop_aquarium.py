@@ -6,7 +6,7 @@ from seaweed import Seaweed
 from goby import Goby
 from crab import Crab
 from snail import Snail
-from runtime_resources import *
+from resources import *
 from graphics_resources import *
 import state
 
@@ -18,6 +18,7 @@ DEBUG_INFO_FREQUENCY = 8
 
 pygame.init()
 root = pygame.display.set_mode(state.WINDOW_SIZE, pygame.NOFRAME)
+pygame.display.set_window_position(state.WINDOW_POSITION)
 
 running = True
 clock = pygame.time.Clock()
@@ -49,6 +50,8 @@ while running:
     # Update and render tank
     selected_tank.update()
     root.blit(selected_tank.render(state.SCALE, overlay_frame=False), (0, 0))
+
+    #pygame.image.save(selected_tank.render(1, overlay_frame=False), "capture.png")
 
     clock.tick()
     state.frame_count += 1

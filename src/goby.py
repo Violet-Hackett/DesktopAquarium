@@ -2,7 +2,7 @@ from pygame import Rect
 from pygame.surface import Surface
 from organism import *
 from softbody import *
-from runtime_resources import *
+from resources import *
 import state
 
 DEFAULT_GOBY_SIZE = 6
