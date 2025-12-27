@@ -24,6 +24,7 @@ class Tank:
         self.godrays: list[Godray] = []
         self.bubbles: list[Bubble] = []
         self.ui_elements: dict[UIElementKey, UIElement] = {}
+        self.paused = False
 
     def check_buffer_update_status(self, buffer_key: BufferKey):
         is_in_buffers = buffer_key in self.buffers.keys()
@@ -31,12 +32,18 @@ class Tank:
         return (not is_in_buffers) or flagged_for_update
 
     def update(self):
-        for organism_instance in self.organisms:
-            organism_instance.update()
+        if not self.paused:
+            for organism_instance in self.organisms:
+                organism_instance.update()
         self.update_ui()
         state.buffer_update_flags = []
     
     def render(self, scale: float, overlay_frame: bool = False) -> pygame.Surface:
+
+        # Return what's in the buffer if the tank is paused
+        if self.paused and BufferKey.RENDERED_FRAME in self.buffers.keys():
+            return self.buffers[BufferKey.RENDERED_FRAME]
+
         ui_surface_rect = (state.TANK_SIZE[0], state.TANK_SIZE[1] + state.UI_HEIGHT)
         surface = pygame.Surface(ui_surface_rect, pygame.SRCALPHA)
 
@@ -52,6 +59,7 @@ class Tank:
         surface.blit(self.render_ui(), (0, 0))
 
         surface = pygame.transform.scale_by(surface, scale)
+        self.buffers[BufferKey.RENDERED_FRAME] = surface
         return surface 
     
     def render_background(self):
@@ -149,37 +157,34 @@ class Tank:
             surface.blit(carry_label, carry_label_position)
 
             # Add the UI grip as an active UI element
-            self.ui_elements[UIElementKey.GRIP] = UIElement(ui_grip_rect, self.drag_window, is_button=True)
+            self.ui_elements[UIElementKey.GRIP] = UIElement(ui_grip_rect, self.drag_window, release_function=self.unpause_tank)
 
             self.buffers[BufferKey.UI] = surface
 
         return self.buffers[BufferKey.UI]
     
-    def drag_window(self):
-        mouse_pos = win32api.GetCursorPos()
-        subprocess_args = [
-            state.WINDOW_POSITION[0],
-            state.WINDOW_POSITION[1],
-            state.WINDOW_SIZE[0],
-            state.WINDOW_SIZE[1],
-            state.SCALE,
-            mouse_pos[0],
-            mouse_pos[1]
-        ]
-        string_args = [str(arg) for arg in subprocess_args]
-        subprocess_result = subprocess.run(["python", "src\\repositioning_window.py", *string_args],
-                                           capture_output=True, text=True)
+    def pause_tank(self):
+        state.fps = 60
+        self.paused = True
 
-        parsed_result = subprocess_result.stdout.strip().splitlines()[-1].split(" ")
-        new_window_position = tuple(map(int, parsed_result))
+    def unpause_tank(self):
+        state.fps = state.DEFAULT_FPS
+        self.paused = False
+    
+    def drag_window(self):
+        self.pause_tank()
+        # Update window position to follow mouse
+        mouse_pos = win32api.GetCursorPos()
+        new_window_position = (state.WINDOW_POSITION[0] + mouse_pos[0] - state.last_win_mouse_position[0], 
+                               state.WINDOW_POSITION[1] + mouse_pos[1] - state.last_win_mouse_position[1])
         state.WINDOW_POSITION = new_window_position
+        state.last_win_mouse_position = mouse_pos
         pygame.display.set_window_position(new_window_position)
 
     def update_ui(self):
-        if get_mouse_presses()[0]:
-            for ui_element in self.ui_elements.values():
-                if ui_element.mouse_collision():
-                    ui_element.apply()
+        mouse_pressed = get_mouse_presses()[0]
+        for ui_element in self.ui_elements.values():
+            ui_element.apply(mouse_pressed)
 
         
 class UIElementKey(Enum):
@@ -187,27 +192,35 @@ class UIElementKey(Enum):
 
 class UIElement:
     def __init__(self, hitbox: pygame.Rect, function_reference: MethodType, is_button: bool = False, 
-                 flags_ui_update: bool = False):
+                 flags_ui_update: bool = False, release_function: MethodType | None = None):
         self.hitbox = hitbox
         self.function_reference = function_reference
         self.is_button = is_button
         self.flags_ui_update = flags_ui_update
         self.last_frame_pressed = 0
+        self.release_function = release_function
     
-    def apply(self):
+    def apply(self, mouse_pressed: bool):
         return_value = None
+        colliding = self.mouse_collision()
 
-        if self.is_button:
-            # Check to see if more than one frame as elapsed since the button was being pressed
-            if state.frame_count > self.last_frame_pressed + 1:
+        # Apply the release function if it exists and 2 frames have elapsed since activated
+        if self.release_function and state.frame_count == self.last_frame_pressed + 2:
+                return_value = self.release_function.__call__()
+
+        if mouse_pressed and colliding:
+            if self.is_button:
+                # Check to see if more than one frame as elapsed since the button was being pressed
+                if state.frame_count > self.last_frame_pressed + 1:
+                    return_value = self.function_reference.__call__()
+            else:
                 return_value = self.function_reference.__call__()
-            self.last_frame_pressed = state.frame_count
-        else:
-            return_value = self.function_reference.__call__()
 
-        # Schedule UI to be updated if the UI Element specifies to do so
-        if self.flags_ui_update:
-            state.buffer_update_flags.append(BufferKey.UI)
+            # Schedule UI to be updated if the UI Element specifies to do so
+            if self.flags_ui_update:
+                state.buffer_update_flags.append(BufferKey.UI)
+
+            self.last_frame_pressed = state.frame_count
 
         return return_value
     

@@ -7,7 +7,7 @@ from goby import Goby
 from crab import Crab
 from snail import Snail
 from resources import *
-from graphics_resources import *
+import graphics_resources
 import state
 
 def save_and_quit():
@@ -37,7 +37,7 @@ selected_tank = Tank(pygame.Rect(0, 0, state.TANK_SIZE[0], state.TANK_SIZE[1]), 
 
 while running:
 
-    pygame.time.wait(state.FRAME_DELAY_MS)
+    pygame.time.wait(state.frame_delay_ms())
 
     # Check for user events
     for event in get_events():
@@ -48,7 +48,10 @@ while running:
             save_and_quit()
 
     # Render screen capture
-    root.blit(pull_screen_capture(), (0, 0))
+    if selected_tank.paused:
+        root.blit(graphics_resources.screen_capture_buffer, (0, 0)) # type: ignore
+    else:
+        root.blit(pull_screen_capture(), (0, 0))
 
     # Update and render tank
     selected_tank.update()
@@ -56,6 +59,7 @@ while running:
 
     #pygame.image.save(selected_tank.render(1, overlay_frame=False), "capture.png")
 
+    state.last_win_mouse_position = win32api.GetCursorPos()
     clock.tick()
     state.frame_count += 1
     if state.frame_count % DEBUG_INFO_FREQUENCY == 0:
