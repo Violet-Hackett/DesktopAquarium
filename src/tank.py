@@ -8,7 +8,7 @@ import random
 import subprocess
 from types import MethodType
 from state import BufferKey
-import os
+import win32api
 
 WATER_ALPHA = 120
 TANK_BORDER_COLOR = (255, 255, 255, 50)
@@ -144,24 +144,36 @@ class Tank:
             pygame.draw.line(surface, UI_HIGHLIGHT_COLOR, (ui_grip_rect.x+1, ui_grip_rect.bottom-1),
                              (ui_grip_rect.right-2, ui_grip_rect.bottom-1))
             carry_label = pygame.image.load(state.TEXTURES_FP + "\\carry_label.png").convert_alpha()
-            carry_label.fill(UI_HIGHLIGHT_COLOR, special_flags=pygame.BLEND_RGB_ADD)
+            carry_label.fill(UI_BASE_COLOR, special_flags=pygame.BLEND_RGB_ADD)
             carry_label_position = (state.TANK_SIZE[0]/2 - carry_label.width/2, state.TANK_SIZE[1] + 3)
             surface.blit(carry_label, carry_label_position)
 
             # Add the UI grip as an active UI element
-            self.ui_elements[UIElementKey.GRIP] = UIElement(ui_grip_rect, self.drag_window)
+            self.ui_elements[UIElementKey.GRIP] = UIElement(ui_grip_rect, self.drag_window, is_button=True)
 
             self.buffers[BufferKey.UI] = surface
 
         return self.buffers[BufferKey.UI]
     
     def drag_window(self):
-        vx, vy = get_mouse_velocity()
-        wx, wy = state.WINDOW_POSITION
-        new_window_position = (wx + vx, wy + vy)
-        pygame.display.set_window_position(new_window_position)
+        mouse_pos = win32api.GetCursorPos()
+        subprocess_args = [
+            state.WINDOW_POSITION[0],
+            state.WINDOW_POSITION[1],
+            state.WINDOW_SIZE[0],
+            state.WINDOW_SIZE[1],
+            state.SCALE,
+            mouse_pos[0],
+            mouse_pos[1]
+        ]
+        string_args = [str(arg) for arg in subprocess_args]
+        subprocess_result = subprocess.run(["python", "src\\repositioning_window.py", *string_args],
+                                           capture_output=True, text=True)
+
+        parsed_result = subprocess_result.stdout.strip().splitlines()[-1].split(" ")
+        new_window_position = tuple(map(int, parsed_result))
         state.WINDOW_POSITION = new_window_position
-        print(new_window_position)
+        pygame.display.set_window_position(new_window_position)
 
     def update_ui(self):
         if get_mouse_presses()[0]:

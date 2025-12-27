@@ -2,9 +2,10 @@ from organism import *
 import pygame
 
 SNAIL_BUBBLE_SPAWN_RATE = 0.02
-DEFAULT_SNAIL_SIZE = 14
+DEFAULT_SNAIL_SIZE = 12
+SNAIL_MUSCLE_TOUGHNESS = 0.2
 SNAIL_BODY_TOUGHNESS = 0.6
-SNAIL_SHELL_TOUGHNESS = 0.8
+SNAIL_SHELL_TOUGHNESS = 0.9
 SNAIL_EYE_COLOR = (0, 0, 0)
 SNAIL_SHELL_COLOR = (0, 0, 0)
 SNAIL_BODY_COLOR = (0, 0, 0)
@@ -12,6 +13,7 @@ SNAIL_BODY_ALPHA = 150
 SNAIL_SENSORY_RADIUS = 10
 SNAIL_SPEED = 1
 SNAIL_LURCH_DELAY = 8 # Number of frames to wait between snail lurches, must be even
+HEADLIFT_FORCE = 1.5
 class Snail(Organism):
 
     def __init__(self, softbody: Softbody, size: float):
@@ -85,18 +87,24 @@ class Snail(Organism):
         head = self.softbody.vertices[0]
         head.x += force[0]
         head.y += force[1]
+    
+    def put_down_head(self):
+        neck_muscle = self.softbody.links[-1]
+        neck_muscle.length = self.size/1.75
 
     def wander(self):
         self.crawl()
         head = self.softbody.vertices[0]
         if distance(head.x_y(), state.TANK_SIZE) < SNAIL_SENSORY_RADIUS/2:
-            self.lift_head((0, -1.5))
+            self.lift_head((0, -HEADLIFT_FORCE))
         elif distance(head.x_y(), (state.TANK_SIZE[0], 0)) < SNAIL_SENSORY_RADIUS/2:
-            self.lift_head((-1.5, 0))
+            self.lift_head((-HEADLIFT_FORCE, 0))
         elif distance(head.x_y(), (0, 0)) < SNAIL_SENSORY_RADIUS/2:
-            self.lift_head((0, 1.5))
+            self.lift_head((0, HEADLIFT_FORCE))
         elif distance(head.x_y(), (0, state.TANK_SIZE[1])) < SNAIL_SENSORY_RADIUS/2:
-            self.lift_head((1.5, 0))
+            self.lift_head((HEADLIFT_FORCE, 0))
+        else:
+            self.put_down_head()
 
 
     def render_body(self, tank_rect: pygame.Rect) -> pygame.Surface:
@@ -144,17 +152,18 @@ class Snail(Organism):
 
         # Links
         neck = Link(head, chest, size/3, SNAIL_BODY_TOUGHNESS, flag=LinkFlag.SNAIL_FLESH)
-        belly = Link(chest, knee, size/3, SNAIL_SHELL_TOUGHNESS, flag=LinkFlag.SNAIL_FLESH)
+        belly = Link(chest, knee, size/3, SNAIL_SHELL_TOUGHNESS+0.2, flag=LinkFlag.SNAIL_FLESH)
         tail = Link(knee, toe, size/3, SNAIL_BODY_TOUGHNESS, flag=LinkFlag.SNAIL_FLESH)
         eye_1 = Link(head, eye_tip_1, size/4, SNAIL_BODY_TOUGHNESS, flag=LinkFlag.SNAIL_FLESH)
         eye_2 = Link(head, eye_tip_2, size/4, SNAIL_BODY_TOUGHNESS, flag=LinkFlag.SNAIL_FLESH)
 
         # Structural shell links
-        shell_link_1 = Link(shell_center, knee, size/4, SNAIL_SHELL_TOUGHNESS, flag=LinkFlag.SNAIL_SHELL)
-        shell_link_2 = Link(shell_center, chest, size/4, SNAIL_SHELL_TOUGHNESS, flag=LinkFlag.SNAIL_SHELL)
+        shell_link_1 = Link(shell_center, knee, size/3, SNAIL_SHELL_TOUGHNESS, flag=LinkFlag.SNAIL_SHELL)
+        shell_link_2 = Link(shell_center, chest, size/3, SNAIL_SHELL_TOUGHNESS, flag=LinkFlag.SNAIL_SHELL)
+        neck_muscle = Link(shell_center, head, size/1.75, SNAIL_MUSCLE_TOUGHNESS)
 
         vertices = [head, chest, knee, toe, shell_center, eye_tip_1, eye_tip_2]
-        links = [neck, belly, tail, eye_1, eye_2, shell_link_1, shell_link_2]
+        links = [neck, belly, tail, eye_1, eye_2, shell_link_1, shell_link_2, neck_muscle]
         snail_softbody = Softbody(vertices, links)
         return Snail(snail_softbody, size)
     
