@@ -21,7 +21,7 @@ class Snail(Organism):
         self.size = size
         self.wall: Wall = Wall.BOTTOM
 
-    def update_ai(self):
+    def update_ai(self, tank):
         self.update_ai_status()
         if self.ai_status == AIStatus.WANDERING:
             self.wander()
@@ -166,6 +166,10 @@ class Snail(Organism):
         links = [neck, belly, tail, eye_1, eye_2, shell_link_1, shell_link_2, neck_muscle]
         snail_softbody = Softbody(vertices, links)
         return Snail(snail_softbody, size)
+    
+    @staticmethod
+    def generate_newborn(root_position: tuple[float, float]):
+        return Snail.generate_random(root_position)
     
     def bubble_spawn_chance(self) -> float | None:
         return SNAIL_BUBBLE_SPAWN_RATE

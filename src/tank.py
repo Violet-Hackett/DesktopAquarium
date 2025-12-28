@@ -34,7 +34,7 @@ class Tank:
     def update(self):
         if not self.paused:
             for organism_instance in self.organisms:
-                organism_instance.update()
+                organism_instance.update(self)
         self.update_ui()
         state.buffer_update_flags = []
     

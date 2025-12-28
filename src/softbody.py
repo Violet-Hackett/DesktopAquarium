@@ -21,6 +21,11 @@ class VertexFlag(Enum):
     SNAIL_BODY = 9
     SNAIL_SHELL_CENTER = 10
     SNAIL_EYE = 11
+    # Egg
+    EGG = 12
+    # KelpWorm
+    KELPWORM_HEAD = 13
+    KELPWORM_BODY = 14
 
 class LinkFlag(Enum):
     NONE = 0
@@ -35,6 +40,9 @@ class LinkFlag(Enum):
     # Snail
     SNAIL_FLESH = 6
     SNAIL_SHELL = 7
+    # KelpWorm
+    KELPWORM_NECK = 8
+    KELPWORM_BODY = 9
 
 GROUND_BOUNCE = 0.5
 DRAG = 0.1

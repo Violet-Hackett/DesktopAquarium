@@ -31,7 +31,7 @@ class Seaweed(Organism):
             
         return surface
 
-    def update_ai(self):
+    def update_ai(self, tank):
         return
     
     @staticmethod
@@ -71,3 +71,7 @@ class Seaweed(Organism):
 
         seaweed_softbody = Softbody(vertices, links)
         return Seaweed(seaweed_softbody)
+    
+    @staticmethod
+    def generate_newborn(root_position: tuple[float, float]):
+        return Seaweed.generate_random(root_position)

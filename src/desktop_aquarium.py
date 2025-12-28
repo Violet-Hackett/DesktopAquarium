@@ -6,6 +6,7 @@ from seaweed import Seaweed
 from goby import Goby
 from crab import Crab
 from snail import Snail
+from kelpworm import KelpWorm
 from resources import *
 import graphics_resources
 import state
@@ -24,16 +25,17 @@ running = True
 clock = pygame.time.Clock()
 
 organisms: list[Organism] = []
+organisms.append(KelpWorm.generate_random((60, 70)))
 organisms.append(Goby.generate_random((80, 20)))
 organisms.append(Goby.generate_random((80, 10)))
-organisms.append(Goby.generate_random((80, 30)))
+organisms.append(Goby.generate_random((80, 30), 5970))
 organisms.append(Goby.generate_random((80, 40)))
-organisms.append(Goby.generate_random((80, 50)))
+organisms.append(Goby.generate_newborn((80, 50)))
 organisms.append(Snail.generate_random((70, state.TANK_SIZE[1])))
 organisms.append(Snail.generate_random((30, state.TANK_SIZE[1])))
 organisms += [Seaweed.generate_random((x + random.randint(-9, 9), 
                                        state.TANK_SIZE[1]-1)) for x in range(0, state.TANK_SIZE[0], 20)]
-selected_tank = Tank(pygame.Rect(0, 0, state.TANK_SIZE[0], state.TANK_SIZE[1]), organisms)
+state.selected_tank = Tank(pygame.Rect(0, 0, state.TANK_SIZE[0], state.TANK_SIZE[1]), organisms)
 
 while running:
 
@@ -48,14 +50,14 @@ while running:
             save_and_quit()
 
     # Render screen capture
-    if selected_tank.paused:
+    if state.selected_tank.paused:
         root.blit(graphics_resources.screen_capture_buffer, (0, 0)) # type: ignore
     else:
         root.blit(pull_screen_capture(), (0, 0))
 
     # Update and render tank
-    selected_tank.update()
-    root.blit(selected_tank.render(state.SCALE, overlay_frame=True), (0, 0))
+    state.selected_tank.update()
+    root.blit(state.selected_tank.render(state.SCALE, overlay_frame=False), (0, 0))
 
     #pygame.image.save(selected_tank.render(1, overlay_frame=False), "capture.png")
 

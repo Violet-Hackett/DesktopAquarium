@@ -4,69 +4,130 @@ from organism import *
 from softbody import *
 from resources import *
 import state
+from egg import Egg
 
-DEFAULT_GOBY_SIZE = 6
+GOBY_START_SIZE = 1
+GOBY_MAX_SIZE = 8
+GOBY_GROWTH_SPEED = 0.001
 GOBY_EYE_COLOR = pygame.Color(255, 255, 255)
 GOBY_FIN_COLOR = pygame.Color(0, 0, 0, 150)
-GOBY_RESTING_SPEED = 0.6
+GOBY_SWIM_SPEED = 1.2
+GOBY_IDLE_SPEED = 0.6
 GOBY_FLEE_RADIUS = 30
 GOBY_BUBBLE_SPAWN_CHANCE = 0.05
+GOBY_WANDER_CHANCE = 0.005
+GOBY_DESTINATION_SATISFACTION_RADIUS = 3
+GOBY_FERTILE_AGES = (7000, 7015)
+GOBY_EGG_LAYING_CHANCE = 0.2
+GOBY_EGG_HATCH_AGE = 1000
+GOBY_EGG_COLOR = pygame.Color(255, 90, 90, 100)
+GOBY_EGG_RADIUS = 1
+GOBY_EGG_DENSITY = 0.1
 class Goby(Organism):
 
-    def __init__(self, softbody: Softbody, size: float):
-        super().__init__(softbody)
-        self.size = size
+    def __init__(self, softbody: Softbody, age: int = 0):
+        super().__init__(softbody, age)
         self.fin_position = 1
-        self.direction = -1
-        self.speed = GOBY_RESTING_SPEED
-        self.ai_status: AIStatus = AIStatus.WANDERING
+        self.direction: tuple[float, float] = (-1.0, 0.0)
+        self.speed = GOBY_IDLE_SPEED
+        self.ai_status: AIStatus = AIStatus.IDLE
+        self.destination: tuple[int, int] | None = None
+        self.size = Goby.calculate_size(age)
 
-    def update_ai(self):
+    def mature(self):
+        new_size = Goby.calculate_size(self.age)
+        if new_size != self.size:
+            self.size = new_size
+            self.update_links()
+
+    def lay_egg(self, tank):
+        knee_coordinates = self.softbody.vertices[2].x_y()
+        tank.organisms.insert(0, Egg.generate_random(knee_coordinates, Goby, GOBY_EGG_HATCH_AGE,
+                                                     GOBY_EGG_COLOR, GOBY_EGG_RADIUS, GOBY_EGG_DENSITY))
+
+    @staticmethod
+    def calculate_size(age: int) -> int:
+        return math.floor(min(GOBY_MAX_SIZE, GOBY_START_SIZE + age*GOBY_GROWTH_SPEED))
+
+    def update_ai(self, tank):
+        self.mature()
         self.update_ai_status()
         if self.ai_status == AIStatus.WANDERING:
             self.wander()
+        elif self.ai_status == AIStatus.IDLE:
+            self.idle()
         elif self.ai_status == AIStatus.FLEEING:
             self.flee()
 
+        if GOBY_FERTILE_AGES[0] < self.age and self.age <= GOBY_FERTILE_AGES[1]:
+            if random.random() < GOBY_EGG_LAYING_CHANCE:
+                self.lay_egg(tank)
+
     def update_ai_status(self):
+
+        # If mouse is too close, flee
         if distance(self.root_position(), (get_relative_mouse_position())) < GOBY_FLEE_RADIUS:
             self.ai_status = AIStatus.FLEEING
-        else:
+        # If mouse is not too close and the goby is still fleeing, idle
+        elif self.ai_status == AIStatus.FLEEING:
+            self.ai_status = AIStatus.IDLE
+        # If the goby is idle, take a chance at wandering
+        elif self.ai_status == AIStatus.IDLE and random.random() < GOBY_WANDER_CHANCE:
+            self.destination = self.random_wander_destination()
             self.ai_status = AIStatus.WANDERING
+        # If the goby is wandering and reaches it's destination, idle
+        elif self.ai_status == AIStatus.WANDERING and self.satisfied_with_destination():
+            self.ai_status = AIStatus.IDLE
+
+    def satisfied_with_destination(self):
+        if self.destination:
+            return distance(self.root_position(), self.destination) < GOBY_DESTINATION_SATISFACTION_RADIUS
+        return True
 
     def wander(self):
-        self.speed = (self.speed - GOBY_RESTING_SPEED) / 1.1 + GOBY_RESTING_SPEED
-        self.swim(self.speed)
-        if random.random() < 0.01 and random.random() < 0.2:
-            self.turn()
-        if self.root_position()[0] < 10 and self.direction == -1:
-            self.turn()
-        elif self.root_position()[0] > state.TANK_SIZE[0] - 10 and self.direction == 1:
-            self.turn()
+        self.speed = graduate_value_towards(self.speed, GOBY_SWIM_SPEED, 0.05)
+        self.direction = direction_vector(self.root_position(), self.destination)
+        self.swim(self.speed, self.direction)
+
+    def idle(self):
+        self.speed = graduate_value_towards(self.speed, GOBY_IDLE_SPEED, 0.05)
+        self.direction = normalize((self.direction[0], 0)) # Eliminate y-direction and normalise
+        self.swim(self.speed, self.direction)
+
+        # If close to the edge of the tank, turn around
+        if self.root_position()[0] < 10 and self.direction[0] < 0:
+            self.turn_around()
+        elif self.root_position()[0] > state.TANK_SIZE[0] - 10 and self.direction[0] > 0:
+            self.turn_around()
+
+    def random_wander_destination(self) -> tuple[int, int]:
+        destination = (random.randint(10, state.TANK_SIZE[0]-10),
+                       random.randint(10, state.TANK_SIZE[1]-10))
+        return destination
 
     def flee(self):
-        self.speed = 5 - distance(self.root_position(), (get_relative_mouse_position()))/10
-        flee_direction = 0
-        if get_relative_mouse_position()[0] < self.root_position()[0]:
-            flee_direction = 1
-        else:
-            flee_direction = -1
-        if flee_direction != self.direction:
-            self.turn()
-        self.swim(self.speed)
+        mouse_pos = get_relative_mouse_position()
+        root_pos = self.root_position()
 
-    def turn(self):
-        self.direction *= -1
+        self.speed = 5 - distance(self.root_position(), mouse_pos)/10
+        anti_mouse_direction = direction_vector(mouse_pos, root_pos)
+        self.swim(self.speed, anti_mouse_direction)
+
+
+    def turn_around(self):
+        self.direction = (-self.direction[0], self.direction[1])
         self.softbody.vertices[1].y += self.fin_position
         self.softbody.vertices[2].y += self.fin_position
         self.softbody.vertices[3].y += self.fin_position
         self.softbody.vertices[0].y -= self.fin_position
 
-    def swim(self, speed: float):
-        self.softbody.vertices[0].x += self.direction * (speed*2)
+    def swim(self, speed: float, direction: tuple[float, float]):
+        self.softbody.vertices[0].x += direction[0] * (speed*2)
+        self.softbody.vertices[0].y += direction[1] * (speed*2)
         if random.random() < speed/2:
             self.fin_position *= -1
-            self.softbody.vertices[3].y += self.fin_position
+            self.softbody.vertices[3].x += self.fin_position * self.direction[1] * min(2, self.speed)
+            self.softbody.vertices[3].y += self.fin_position * self.direction[0] * min(2, self.speed)
     
     def render(self, tank_rect: Rect) -> Surface:
         surface = pygame.Surface(tank_rect.size, pygame.SRCALPHA)
@@ -90,14 +151,17 @@ class Goby(Organism):
 
         pygame.draw.line(surface, BLACK, (head.x, head.y), (abdomen.x, abdomen.y), int(self.size/3))
 
-        surface.set_at((int(head.x), int(head.y-1)), GOBY_EYE_COLOR)
+        if self.alive:
+            surface.set_at((int(head.x), int(head.y-1)), GOBY_EYE_COLOR)
 
         return surface
     
     @staticmethod
-    def generate_random(root_position: tuple[float, float]):
+    def generate_random(root_position: tuple[float, float], age: int | None = None):
         root_x, root_y = root_position
-        size = DEFAULT_GOBY_SIZE + random.randint(-2, 2)
+        if not age:
+            age = random.randint(0, int((GOBY_MAX_SIZE-GOBY_START_SIZE)/GOBY_GROWTH_SPEED))
+        size = Goby.calculate_size(age)
 
         # Generate vertices
         head = Vertex(root_x, root_y, 0, [], VertexFlag.GOBY_HEAD)
@@ -106,14 +170,27 @@ class Goby(Organism):
         tailfin = Vertex(root_x + size, root_y, 0, [], VertexFlag.GOBY_TAILFIN)
 
         # Link vertices
-        neck = Link(head, abdomen, size/3, flag=LinkFlag.GOBY_NECK, tension=0.66)
-        calf = Link(abdomen, knee, size*2/3, tension=0.66)
-        tail = Link(knee, tailfin, size/3, flag=LinkFlag.GOBY_TAIL, tension=0.66)
+        neck, calf, tail = Goby.generate_links([head, abdomen, knee, tailfin], size)
 
         vertices = [head, abdomen, knee, tailfin]
         links = [neck, calf, tail]
         goby_softbody = Softbody(vertices, links)
-        return Goby(goby_softbody, size)
+        return Goby(goby_softbody, age)
+    
+    @staticmethod
+    def generate_newborn(root_position: tuple[float, float]):
+        return Goby.generate_random(root_position, 0)
+    
+    @staticmethod
+    def generate_links(vertices: list[Vertex], size: int):
+        head, abdomen, knee, tailfin = vertices
+        neck = Link(head, abdomen, size/3, flag=LinkFlag.GOBY_NECK, tension=0.66)
+        calf = Link(abdomen, knee, size*2/3, tension=0.66)
+        tail = Link(knee, tailfin, size/3, flag=LinkFlag.GOBY_TAIL, tension=0.66)
+        return [neck, calf, tail]
+    
+    def update_links(self):
+        self.softbody.links = self.generate_links(self.softbody.vertices, self.size)
     
     def bubble_spawn_chance(self) -> float | None:
         return GOBY_BUBBLE_SPAWN_CHANCE

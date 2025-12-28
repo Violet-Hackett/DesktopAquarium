@@ -39,7 +39,7 @@ class Crab(Organism):
         
         return surface
 
-    def update_ai(self):
+    def update_ai(self, tank):
         pass
 
     @staticmethod
@@ -103,6 +103,10 @@ class Crab(Organism):
                  bicep_right]
         crab_softbody = Softbody(vertices, links)
         return Crab(crab_softbody, size)
+    
+    @staticmethod
+    def generate_newborn(root_position: tuple[float, float]):
+        return Crab.generate_random(root_position)
     
     def bubble_spawn_chance(self) -> float | None:
         return CRAB_BUBBLE_SPAWN_CHANCE

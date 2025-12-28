@@ -14,11 +14,17 @@ class AIStatus(Enum):
     WANDERING = 1
     FLEEING = 2
     HIDING = 3
+    IDLE = 4
+    HUNTING = 5
+    DIGESTING = 6
 
 # Abstract class
 class Organism:
-    def __init__(self, softbody: Softbody):
+    def __init__(self, softbody: Softbody, age: int = 0):
         self.softbody = softbody
+        self.age = age
+        self.ai_status = AIStatus.NONE
+        self.alive = True
 
     def root_position(self) -> tuple[float, float]:
         return (self.softbody.vertices[0].x,
@@ -49,17 +55,24 @@ class Organism:
 
         return surface
     
-    def update(self):
-        self.update_ai()
+    def update(self, tank):
+        if self.alive:
+            self.update_ai(tank)
         self.softbody.update()
+        self.age += 1
     
     # Abstract method
-    def update_ai(self):
+    def update_ai(self, tank):
         raise NotImplementedError()
     
     # Abstract method
     @staticmethod
     def generate_random(root_position: tuple[float, float]):
+        raise NotImplementedError()
+    
+    # Abstract method
+    @staticmethod
+    def generate_newborn(root_position: tuple[float, float]):
         raise NotImplementedError()
     
     # Abstract method

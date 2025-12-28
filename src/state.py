@@ -2,8 +2,10 @@ from pathlib import Path
 from enum import Enum
 import win32api
 
+selected_tank = None
+
 # Element sizes
-TANK_SIZE: tuple[int, int] = (200, 80) #(200, 100)
+TANK_SIZE: tuple[int, int] = (200, 100)
 SCALE: int = 6
 UI_HEIGHT: int = 11
 WINDOW_SIZE: tuple[int, int] = (TANK_SIZE[0] * SCALE, (TANK_SIZE[1] + UI_HEIGHT) * SCALE)

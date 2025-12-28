@@ -65,3 +65,12 @@ def wall_to_direction(wall: Wall) -> tuple[float, float]:
         case Wall.BOTTOM:
             return (1, 0)
         
+def direction_vector(p1, p2):
+    return normalize((p2[0] - p1[0], p2[1] - p1[1]))
+
+def normalize(vector: tuple[float, float]):
+    magnitude = distance((0, 0), vector)
+    return (vector[0]/magnitude, vector[1]/magnitude)
+
+def graduate_value_towards(current_value: float, target_value: float, rate: float) -> float:
+        return (current_value - target_value) / (1 + rate) + target_value
