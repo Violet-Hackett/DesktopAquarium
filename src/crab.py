@@ -92,7 +92,7 @@ class Crab(Organism):
         bicep_right = Link(body_top_right, wrist_right, size/3, MUSCLE_HARDNESS)
 
         # Set belly's gound higher than actual ground to make crab stand
-        belly_boundary = pygame.Rect(0, 0, state.TANK_SIZE[0], state.TANK_SIZE[1]-size/2)
+        belly_boundary = pygame.Rect(0, 0, state.tank_width(), state.tank_height()-size/2)
         body_bottom_left.boundary = belly_boundary
         body_bottom_right.boundary = belly_boundary
 
@@ -110,3 +110,14 @@ class Crab(Organism):
     
     def bubble_spawn_chance(self) -> float | None:
         return CRAB_BUBBLE_SPAWN_CHANCE
+    
+    def to_json(self) -> dict:
+        json_dict = super().to_json()
+        json_dict['type'] = 'Crab'
+        json_dict['size'] = self.size
+        return json_dict
+    
+    @staticmethod
+    def from_json(json_dict: dict, ids_to_vertices: dict):
+        softbody = Softbody.from_json(json_dict['softbody'], ids_to_vertices)
+        return Crab(softbody, json_dict['size'])

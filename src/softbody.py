@@ -26,6 +26,8 @@ class VertexFlag(Enum):
     # KelpWorm
     KELPWORM_HEAD = 13
     KELPWORM_BODY = 14
+    # Sculpture
+    SCULPTURE = 15
 
 class LinkFlag(Enum):
     NONE = 0
@@ -43,6 +45,8 @@ class LinkFlag(Enum):
     # KelpWorm
     KELPWORM_NECK = 8
     KELPWORM_BODY = 9
+    # Sculpture
+    SCULPTURE = 10
 
 GROUND_BOUNCE = 0.5
 DRAG = 0.1
@@ -82,10 +86,20 @@ class Link:
         self.v1.constrain_bounds()
         self.v2.constrain_bounds()
 
+    def to_json(self):
+        return {'v1_id': id(self.v1), 'v2_id': id(self.v2), 'length': self.length, 
+                'tension': self.tension, 'flag': self.flag.value}
+    
+    @staticmethod
+    def from_json(json_dict: dict, ids_to_vertices: dict):
+        v1 = ids_to_vertices[json_dict['v1_id']]
+        v2 = ids_to_vertices[json_dict['v2_id']]
+        return Link(v1, v2, json_dict['length'], json_dict['tension'], LinkFlag(json_dict['flag']))
+
 class Vertex:
     def __init__(self, x: float, y: float, density: float, links: list[Link], 
                  flag: VertexFlag = VertexFlag.NONE, anchor: bool = False, 
-                 boundary: pygame.Rect = pygame.Rect(0, 0, *state.TANK_SIZE)):
+                 boundary: pygame.Rect | None = None, gravity: tuple[float, float] = (0, state.GRAVITY)):
         self.x = x
         self.y = y
         self.lx = x
@@ -94,8 +108,11 @@ class Vertex:
         self.links = links
         self.flag = flag
         self.anchor = anchor
-        self.boundary = boundary
-        self.gravity: tuple[float, float] = (0, state.GRAVITY)
+        self.gravity = gravity
+        if not boundary:
+            self.boundary = pygame.Rect(0, 0, *state.tank_size())
+        else:
+            self.boundary = boundary
 
     def x_y(self) -> tuple[float, float]:
         return (self.x, self.y)
@@ -164,38 +181,28 @@ class Vertex:
             self.y = self.boundary.y + self.boundary.height
             self.ly = self.boundary.y + self.boundary.height - self.get_dy() * GROUND_BOUNCE
 
-class AngleConstraint:
-    def __init__(self, vertex_a, vertex_b, vertex_c, rest_angle: int, stiffness: float):
-        self.a = vertex_a
-        self.b = vertex_b
-        self.c = vertex_c
-        self.rest_angle = rest_angle
-        self.stiffness = stiffness
-
-    def apply(self):
-        rest_angle_radians = math.radians(self.rest_angle)
-        abx, aby = self.a.x - self.b.x, self.a.y - self.b.y
-        cbx, cby = self.c.x - self.b.x, self.c.y - self.b.y
-
-        dot = abx * cbx + aby * cby
-        mag = (abx*abx + aby*aby)**0.5 * (cbx*cbx + cby*cby)**0.5
-        if mag < 1e-6:
-            return
-
-        angle = math.acos(max(-1, min(1, dot / mag)))
-        diff = angle - rest_angle_radians
-
-        correction = diff * self.stiffness
-        self.a.x -= cbx * correction
-        self.a.y -= cby * correction
-        self.c.x -= abx * correction
-        self.c.y -= aby * correction
+    def to_json(self) -> dict:
+        if self.boundary:
+            boundary = (self.boundary.x, self.boundary.y,
+                        self.boundary.width, self.boundary.height)
+        else:
+            boundary = None
+        return {'x': self.x, 'y': self.y, 'density': self.density, 'flag': self.flag.value, 
+                'anchor': self.anchor, 'gravity': self.gravity, 'boundary': boundary}
+    
+    @staticmethod
+    def from_json(json_dict: dict):
+        if json_dict['boundary']:
+            boundary = pygame.Rect(json_dict['boundary'])
+        else:
+            boundary = None
+        return Vertex(json_dict['x'], json_dict['y'], json_dict['density'], [], VertexFlag(json_dict['flag']),
+                      json_dict['anchor'], boundary, json_dict['gravity'])
 
 class Softbody:
-    def __init__(self, vertices: list[Vertex], links: list[Link], angles: list[AngleConstraint] = []):
+    def __init__(self, vertices: list[Vertex], links: list[Link]):
         self.vertices = vertices
         self.links = links
-        self.angles = angles
 
     def update(self):
         for i in range(CONSTRAINT_ITERATIONS):
@@ -204,5 +211,14 @@ class Softbody:
                 vertex.constrain_bounds()
             for link in self.links:
                 link.constrain_distance()
-            for angle in self.angles:
-                angle.apply()
+
+    def to_json(self) -> dict:
+        vertex_ids = list(map(id, self.vertices))
+        links = [link.to_json() for link in self.links]
+        return {'vertex_ids': vertex_ids, 'links': links}
+    
+    @staticmethod
+    def from_json(json_dict: dict, ids_to_vertices: dict):
+        vertices = [ids_to_vertices[vertex_id] for vertex_id in json_dict['vertex_ids']]
+        links = [Link.from_json(link_json, ids_to_vertices) for link_json in json_dict['links']]
+        return Softbody(vertices, links)

@@ -75,3 +75,13 @@ class Seaweed(Organism):
     @staticmethod
     def generate_newborn(root_position: tuple[float, float]):
         return Seaweed.generate_random(root_position)
+    
+    def to_json(self) -> dict:
+        json_dict = super().to_json()
+        json_dict['type'] = 'Seaweed'
+        return json_dict
+    
+    @staticmethod
+    def from_json(json_dict: dict, ids_to_vertices: dict):
+        softbody = Softbody.from_json(json_dict['softbody'], ids_to_vertices)
+        return Seaweed(softbody)

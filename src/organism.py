@@ -20,11 +20,12 @@ class AIStatus(Enum):
 
 # Abstract class
 class Organism:
-    def __init__(self, softbody: Softbody, age: int = 0):
+    def __init__(self, softbody: Softbody, age: int = 0, ai_status: AIStatus = AIStatus.NONE, 
+                 alive: bool = True):
         self.softbody = softbody
         self.age = age
-        self.ai_status = AIStatus.NONE
-        self.alive = True
+        self.ai_status = ai_status
+        self.alive = alive
 
     def root_position(self) -> tuple[float, float]:
         return (self.softbody.vertices[0].x,
@@ -78,3 +79,13 @@ class Organism:
     # Abstract method
     def bubble_spawn_chance(self) -> float | None:
         return None
+
+    def to_json(self) -> dict:
+        softbody = self.softbody.to_json()
+        return {'softbody': softbody, 'age': self.age, 'ai_status': self.ai_status.value,
+                'alive': self.alive}
+    
+    # Abstract method
+    @staticmethod
+    def from_json(json_dict: dict, ids_to_vertices: dict):
+        raise NotImplementedError()

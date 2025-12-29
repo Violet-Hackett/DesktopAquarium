@@ -19,15 +19,15 @@ KELPWORM_WANDER_TIME = 150
 KELPWORM_SWIM_SPEED = 2
 KELPWORM_DESTINATION_SATISFACTION_RADIUS = 5
 KELPWORM_PREY = ['Goby']
-KELPWORM_SENSORY_RADIUS = 6
+KELPWORM_SENSORY_RADIUS = 10
 KELPWORM_GRAB_RADIUS = 2
 KELPWORM_DIGEST_PERIOD = 300
 class KelpWorm(Organism):
-    def __init__(self, softbody: Softbody):
-        super().__init__(softbody)
-        self.time_of_last_catch = 0
-        self.ai_status = AIStatus.WANDERING
-        self.destination: tuple[int, int] | None = None
+    def __init__(self, softbody: Softbody, time_of_last_catch: int = 0, 
+                 ai_status: AIStatus = AIStatus.WANDERING, destination: tuple[int, int] | None = None):
+        super().__init__(softbody, ai_status=ai_status)
+        self.time_of_last_catch = time_of_last_catch
+        self.destination = destination
         self.targeted_organism: Organism | None = None
         self.caught_organism: Organism | None = None
 
@@ -94,6 +94,7 @@ class KelpWorm(Organism):
             tank.organisms.remove(self.caught_organism)
             self.caught_organism = None
             self.retract(keep_anchor=False)
+            self.softbody.links = self.softbody.links[:-1]
     
     def find_target_prey(self, tank):
 
@@ -121,7 +122,7 @@ class KelpWorm(Organism):
 
         prey_root_pos = self.targeted_organism.root_position() # type: ignore
         prey_distance = distance(prey_root_pos, self.root_position())
-        speed = 1 + KELPWORM_SWIM_SPEED*4 - 1/(prey_distance+1)
+        speed = 1 + KELPWORM_SWIM_SPEED*2 - 1/(prey_distance+1)
         prey_direction = direction_vector(self.root_position(), prey_root_pos)
         self.swim(speed, prey_direction)
         if prey_distance < KELPWORM_GRAB_RADIUS:
@@ -141,8 +142,8 @@ class KelpWorm(Organism):
         self.softbody.vertices[0].y += direction[1] * (speed*2)
 
     def random_wander_destination(self) -> tuple[int, int]:
-        destination = (random.randint(10, state.TANK_SIZE[0]-10),
-                       random.randint(10, state.TANK_SIZE[1]-10))
+        destination = (random.randint(10, state.tank_width()-10),
+                       random.randint(10, state.tank_height()-10))
         return destination
     
     def retract(self, keep_anchor: bool = False):
@@ -191,3 +192,18 @@ class KelpWorm(Organism):
 
     def bubble_spawn_chance(self) -> float | None:
         return 0.01
+    
+    def to_json(self) -> dict:
+        json_dict = super().to_json()
+        json_dict['type'] = 'KelpWorm'
+        json_dict['destination'] = self.destination
+        json_dict['time_of_last_catch'] = self.time_of_last_catch
+        return json_dict
+    
+    @staticmethod
+    def from_json(json_dict: dict, ids_to_vertices: dict):
+        softbody = Softbody.from_json(json_dict['softbody'], ids_to_vertices)
+        destination = json_dict['destination']
+        ai_status = AIStatus(json_dict['ai_status'])
+        time_of_last_catch = json_dict['time_of_last_catch']
+        return KelpWorm(softbody, time_of_last_catch, ai_status, destination)

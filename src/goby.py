@@ -18,20 +18,21 @@ GOBY_BUBBLE_SPAWN_CHANCE = 0.05
 GOBY_WANDER_CHANCE = 0.005
 GOBY_DESTINATION_SATISFACTION_RADIUS = 3
 GOBY_FERTILE_AGES = (7000, 7015)
-GOBY_EGG_LAYING_CHANCE = 0.2
+GOBY_EGG_LAYING_CHANCE = 0.1
 GOBY_EGG_HATCH_AGE = 1000
 GOBY_EGG_COLOR = pygame.Color(255, 90, 90, 100)
 GOBY_EGG_RADIUS = 1
 GOBY_EGG_DENSITY = 0.1
 class Goby(Organism):
 
-    def __init__(self, softbody: Softbody, age: int = 0):
-        super().__init__(softbody, age)
+    def __init__(self, softbody: Softbody, age: int = 0, destination: tuple[int, int] | None = None,
+                 direction: tuple[float, float] = (-1.0, 0.0), speed: float = GOBY_IDLE_SPEED,
+                 ai_status: AIStatus = AIStatus.IDLE, alive: bool = True):
+        super().__init__(softbody, age, ai_status, alive)
         self.fin_position = 1
-        self.direction: tuple[float, float] = (-1.0, 0.0)
-        self.speed = GOBY_IDLE_SPEED
-        self.ai_status: AIStatus = AIStatus.IDLE
-        self.destination: tuple[int, int] | None = None
+        self.direction = direction
+        self.speed = speed
+        self.destination = destination
         self.size = Goby.calculate_size(age)
 
     def mature(self):
@@ -97,12 +98,12 @@ class Goby(Organism):
         # If close to the edge of the tank, turn around
         if self.root_position()[0] < 10 and self.direction[0] < 0:
             self.turn_around()
-        elif self.root_position()[0] > state.TANK_SIZE[0] - 10 and self.direction[0] > 0:
+        elif self.root_position()[0] > state.tank_width() - 10 and self.direction[0] > 0:
             self.turn_around()
 
     def random_wander_destination(self) -> tuple[int, int]:
-        destination = (random.randint(10, state.TANK_SIZE[0]-10),
-                       random.randint(10, state.TANK_SIZE[1]-10))
+        destination = (random.randint(10, state.tank_width()-10),
+                       random.randint(10, state.tank_height()-10))
         return destination
 
     def flee(self):
@@ -159,8 +160,8 @@ class Goby(Organism):
     @staticmethod
     def generate_random(root_position: tuple[float, float], age: int | None = None):
         root_x, root_y = root_position
-        if not age:
-            age = random.randint(0, int((GOBY_MAX_SIZE-GOBY_START_SIZE)/GOBY_GROWTH_SPEED))
+        if age == None:
+            age = random.randint(0, 8000)
         size = Goby.calculate_size(age)
 
         # Generate vertices
@@ -194,3 +195,22 @@ class Goby(Organism):
     
     def bubble_spawn_chance(self) -> float | None:
         return GOBY_BUBBLE_SPAWN_CHANCE
+    
+    def to_json(self) -> dict:
+        json_dict = super().to_json()
+        json_dict['type'] = 'Goby'
+        json_dict['destination'] = self.destination
+        json_dict['direction'] = self.direction
+        json_dict['speed'] = self.speed
+        return json_dict
+    
+    @staticmethod
+    def from_json(json_dict: dict, ids_to_vertices: dict):
+        softbody = Softbody.from_json(json_dict['softbody'], ids_to_vertices)
+        age = json_dict['age']
+        destination = json_dict['destination']
+        direction = json_dict['direction']
+        speed = json_dict['speed']
+        ai_status = AIStatus(json_dict['ai_status'])
+        alive = json_dict['alive']
+        return Goby(softbody, age, destination, direction, speed, ai_status, alive)

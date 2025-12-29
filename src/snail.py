@@ -16,10 +16,10 @@ SNAIL_LURCH_DELAY = 8 # Number of frames to wait between snail lurches, must be 
 HEADLIFT_FORCE = 1.5
 class Snail(Organism):
 
-    def __init__(self, softbody: Softbody, size: float):
+    def __init__(self, softbody: Softbody, size: float, wall: Wall = Wall.BOTTOM):
         super().__init__(softbody)
         self.size = size
-        self.wall: Wall = Wall.BOTTOM
+        self.wall = wall
 
     def update_ai(self, tank):
         self.update_ai_status()
@@ -42,11 +42,11 @@ class Snail(Organism):
     def touching_wall(self, vertex: Vertex) -> Wall | None:
         if vertex.x <= 1:
             return Wall.LEFT
-        elif vertex.x >= state.TANK_SIZE[0] - 1:
+        elif vertex.x >= state.tank_width() - 1:
             return Wall.RIGHT
         elif vertex.y <= 1:
             return Wall.TOP
-        elif vertex.y >= state.TANK_SIZE[1] - 1:
+        elif vertex.y >= state.tank_height() - 1:
             return Wall.BOTTOM
         return None
     
@@ -95,13 +95,13 @@ class Snail(Organism):
     def wander(self):
         self.crawl()
         head = self.softbody.vertices[0]
-        if distance(head.x_y(), state.TANK_SIZE) < SNAIL_SENSORY_RADIUS/2:
+        if distance(head.x_y(), state.tank_size()) < SNAIL_SENSORY_RADIUS/2:
             self.lift_head((0, -HEADLIFT_FORCE))
-        elif distance(head.x_y(), (state.TANK_SIZE[0], 0)) < SNAIL_SENSORY_RADIUS/2:
+        elif distance(head.x_y(), (state.tank_width(), 0)) < SNAIL_SENSORY_RADIUS/2:
             self.lift_head((-HEADLIFT_FORCE, 0))
         elif distance(head.x_y(), (0, 0)) < SNAIL_SENSORY_RADIUS/2:
             self.lift_head((0, HEADLIFT_FORCE))
-        elif distance(head.x_y(), (0, state.TANK_SIZE[1])) < SNAIL_SENSORY_RADIUS/2:
+        elif distance(head.x_y(), (0, state.tank_height())) < SNAIL_SENSORY_RADIUS/2:
             self.lift_head((HEADLIFT_FORCE, 0))
         else:
             self.put_down_head()
@@ -173,3 +173,17 @@ class Snail(Organism):
     
     def bubble_spawn_chance(self) -> float | None:
         return SNAIL_BUBBLE_SPAWN_RATE
+
+    def to_json(self) -> dict:
+        json_dict = super().to_json()
+        json_dict['type'] = 'Snail'
+        json_dict['size'] = self.size
+        json_dict['wall'] = self.wall.value
+        return json_dict
+    
+    @staticmethod
+    def from_json(json_dict: dict, ids_to_vertices: dict):
+        softbody = Softbody.from_json(json_dict['softbody'], ids_to_vertices)
+        size = json_dict['size']
+        wall = Wall(json_dict['wall'])
+        return Snail(softbody, size, wall)
