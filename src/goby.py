@@ -103,8 +103,13 @@ class Goby(Organism):
             self.turn_around()
 
     def random_wander_destination(self) -> tuple[int, int]:
-        destination = (random.randint(10, state.tank_width()-10),
-                       random.randint(10, state.tank_height()-10))
+        collision_sculptures = state.selected_tank.get_collision_sculptures() # type: ignore
+        destination = (0, 0)
+        for _ in range(20):
+            destination = (random.randint(10, state.tank_width()-10),
+                        random.randint(10, state.tank_height()-10))
+            if not Vertex.collides_with_any_sculptures(*destination, collision_sculptures):
+                return destination
         return destination
 
     def flee(self):
@@ -123,13 +128,19 @@ class Goby(Organism):
         self.softbody.vertices[3].y += self.fin_position
         self.softbody.vertices[0].y -= self.fin_position
 
-    def swim(self, speed: float, direction: tuple[float, float]):
-        self.softbody.vertices[0].x += direction[0] * (speed*2)
-        self.softbody.vertices[0].y += direction[1] * (speed*2)
+    def swim(self, speed, direction):
+        head = self.softbody.vertices[0]
+        vx = direction[0] * speed * 20
+        vy = direction[1] * speed * 20
+
+        head.lx -= vx
+        head.ly -= vy
+
         if random.random() < speed/2:
             self.fin_position *= -1
-            self.softbody.vertices[3].x += self.fin_position * self.direction[1] * min(2, self.speed)
-            self.softbody.vertices[3].y += self.fin_position * self.direction[0] * min(2, self.speed)
+            tailfin =  self.softbody.vertices[3]
+            tailfin.lx -= self.fin_position * self.direction[1] * min(2, self.speed) * 10
+            tailfin.ly -= self.fin_position * self.direction[0] * min(2, self.speed) * 10
     
     def render(self, tank_rect: Rect) -> Surface:
         surface = pygame.Surface(tank_rect.size, pygame.SRCALPHA)
@@ -219,3 +230,7 @@ class Goby(Organism):
     @staticmethod
     def get_spawn_key():
         return pygame.K_g
+    
+    @staticmethod
+    def get_do_collision() -> bool:
+        return True

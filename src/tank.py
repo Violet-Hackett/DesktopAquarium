@@ -60,7 +60,7 @@ class Tank:
     def get_collision_sculptures(self) -> list[Sculpture]:
         sculptures = []
         for sculpture in self.sculptures:
-            if sculpture.collision_enabled:
+            if not sculpture.is_background:
                 sculptures.append(sculpture)
         return sculptures
 
@@ -74,9 +74,12 @@ class Tank:
         state.buffer_update_flags = []
         self.spawn_keyed_organisms()
         collision_links = self.get_collision_links()
+        collision_sculptures = self.get_collision_sculptures()
+        for link in collision_links:
+            link.compute_aabb()
         if not self.paused:
             for organism_instance in self.organisms:
-                organism_instance.update(self, collision_links)
+                organism_instance.update(self, collision_links, collision_sculptures)
         self.ui.update()
     
     def render(self, scale: float, overlay_frame: bool = False) -> pygame.Surface:
@@ -212,7 +215,7 @@ class Tank:
 
         # Create a new sculpture
         background = self.ui.sculpt_swich_state == SculptSwitchState.BACKGROUND
-        new_sculpture = Sculpture([], background, not background)
+        new_sculpture = Sculpture([], background)
         self.selected_sculpture = new_sculpture
         self.sculptures.append(new_sculpture)
 

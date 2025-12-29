@@ -4,14 +4,14 @@ KELPWORM_BUBBLE_SPAWN_CHANCE = 0.01
 KELPWORM_BODY_DENSITY = 0.1
 KELPWORM_INFLATED_BLADDER_DENSITY = -2
 KELPWORM_DEFLATED_BLADDER_DENSITY = 0.2
-KELPWORM_EXTENDED_ANCHOR_DENSITY = 8
+KELPWORM_EXTENDED_ANCHOR_DENSITY = 5
 KELPWORM_RETRACTED_ANCHOR_DENSITY = 0
-KELPWORM_HEAD_DENSITY = -0.1
+KELPWORM_HEAD_DENSITY = 0
 KELPWORM_NUM_BODYLINKS = 6
 KELPWORM_RESTED_BODYLINK_DISTANCE = 2
 KELPWORM_EXTENDED_BODYLINK_DISTANCE = 6
 KELPWORM_BODY_TENSION = 0.6
-KELPWORM_NECK_TENSION = 0.9
+KELPWORM_NECK_TENSION = 0.6
 KELPWORM_WIDTH = 3
 KELPWORM_FLESH_COLOR = pygame.Color(0, 0, 0, 150)
 KELPWORM_BONE_COLOR = pygame.Color(0, 0, 0, 255)
@@ -140,12 +140,21 @@ class KelpWorm(Organism):
         self.swim(KELPWORM_SWIM_SPEED, self.direction)
 
     def swim(self, speed: float, direction: tuple[float, float]):
-        self.softbody.vertices[0].x += direction[0] * (speed*2)
-        self.softbody.vertices[0].y += direction[1] * (speed*2)
+        head = self.softbody.vertices[1]
+        vx = direction[0] * speed * 20
+        vy = direction[1] * speed * 20
+
+        head.lx -= vx
+        head.ly -= vy
 
     def random_wander_destination(self) -> tuple[int, int]:
-        destination = (random.randint(10, state.tank_width()-10),
-                       random.randint(10, state.tank_height()-10))
+        collision_sculptures = state.selected_tank.get_collision_sculptures() # type: ignore
+        destination = (0, 0)
+        for _ in range(20):
+            destination = (random.randint(10, state.tank_width()-10),
+                        random.randint(10, state.tank_height()-10))
+            if not Vertex.collides_with_any_sculptures(*destination, collision_sculptures):
+                return destination
         return destination
     
     def retract(self, keep_anchor: bool = False):
@@ -213,3 +222,7 @@ class KelpWorm(Organism):
     @staticmethod
     def get_spawn_key():
         return pygame.K_k
+    
+    @staticmethod
+    def get_do_collision() -> bool:
+        return True

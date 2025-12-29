@@ -71,6 +71,9 @@ def direction_vector(p1, p2):
 
 def normalize(vector: tuple[float, float]):
     magnitude = distance((0, 0), vector)
+    if magnitude == 0:
+        print("WARNING: Cannot normalize vector with magnitude of 0")
+        return (0, 1)
     return (vector[0]/magnitude, vector[1]/magnitude)
 
 def graduate_value_towards(current_value: float, target_value: float, rate: float) -> float:

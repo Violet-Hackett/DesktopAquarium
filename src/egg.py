@@ -59,3 +59,7 @@ class Egg(Organism):
     @staticmethod
     def get_spawn_key():
         return None
+    
+    @staticmethod
+    def get_do_collision() -> bool:
+        return True

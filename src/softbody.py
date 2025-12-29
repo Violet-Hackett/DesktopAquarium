@@ -53,8 +53,8 @@ DRAG = 0.1
 LINK_TENSION = 2.0
 MOUSE_GRAB_RADIUS = 3
 MOUSE_WATER_FORCE = 1
-CONSTRAINT_ITERATIONS = 3
-VERTEX_COLLISION_RADIUS = 3
+CONSTRAINT_ITERATIONS = 8
+VERTEX_COLLISION_RADIUS = 2
 
 class Link:
     def __init__(self, v1, v2, length: float, tension: float = LINK_TENSION, flag: LinkFlag = LinkFlag.NONE):
@@ -85,7 +85,13 @@ class Link:
             self.v2.y += dy
 
         self.v1.constrain_tank_bounds()
-        self.v2.constrain_tank_bounds()     
+        self.v2.constrain_tank_bounds()
+
+    def compute_aabb(self):
+        self.minx = min(self.v1.x, self.v2.x)
+        self.maxx = max(self.v1.x, self.v2.x)
+        self.miny = min(self.v1.y, self.v2.y)
+        self.maxy = max(self.v1.y, self.v2.y)   
 
     def to_json(self):
         return {'v1_id': id(self.v1), 'v2_id': id(self.v2), 'length': self.length, 
@@ -127,43 +133,31 @@ class Vertex:
     def get_speed(self) -> float:
         return (self.get_dx()**2 + self.get_dy()**2)**(1/2)
     
+    def apply_mouse_grab_force(self):
+        self.x , self.y = get_relative_mouse_position()
+    
     def apply_water_force(self):
         vx, vy = get_mouse_velocity()
         mouse_distance = distance(get_relative_mouse_position(), (self.x, self.y))
         MWF = MOUSE_WATER_FORCE
-        self.x += max(-MWF, min(MWF, vx * MWF / (mouse_distance**2 + .1)))
-        self.y += max(-MWF, min(MWF, vy * MWF / (mouse_distance**2 + .1)))
+        self.lx -= max(-MWF, min(MWF, vx * MWF / (mouse_distance**2 + .1))) * 10
+        self.ly -= max(-MWF, min(MWF, vy * MWF / (mouse_distance**2 + .1))) * 10
 
-    def update_independently(self):
-        mouse_pressed = get_mouse_presses()[0]
-        mouse_pos = get_relative_mouse_position()
-
-        # Grab vertex if mouse is down and no vertex is grabbed
-        if mouse_pressed and not state.vertex_grabbed:
-            if distance((self.x, self.y), mouse_pos) < MOUSE_GRAB_RADIUS:
-                state.vertex_grabbed = self
-
-        # Snap grabbed vertex to mouse position
-        if state.vertex_grabbed == self:
-            if mouse_pressed:
-                self.x, self.y = mouse_pos
-            else:
-                state.vertex_grabbed = None
-        
+    def update_independently(self, collision_sculptures: list = [], do_collision: bool = True):
         if self.anchor:
             return
 
+        self.apply_water_force()
+
+        vx = (self.x - self.lx) * DRAG + self.gravity[0] * self.density
+        vy = (self.y - self.ly) * DRAG + self.gravity[1] * self.density
+
         self.lx = self.x
         self.ly = self.y
-        self.x += self.get_dx()
-        self.y += self.get_dy()
 
-        gravity_force_x = self.gravity[0] * self.density
-        gravity_force_y = self.gravity[1] * self.density
-        self.x += gravity_force_x
-        self.y += gravity_force_y
-
-        self.apply_water_force()
+        if not do_collision or not Vertex.collides_with_any_sculptures(self.x + vx, self.y + vy, collision_sculptures):
+            self.x += vx
+            self.y += vy
 
     def constrain_tank_bounds(self):
         if self.anchor:
@@ -183,61 +177,132 @@ class Vertex:
             self.ly = self.boundary.y + self.boundary.height - self.get_dy() * BOUNCE_FORCE
 
     def constrain_distance_to_static_link(self, link, vertex_radius: float = VERTEX_COLLISION_RADIUS):
-
-        # Link endpoints
-        Ax, Ay = link.v1.x, link.v1.y
-        Bx, By = link.v2.x, link.v2.y
-
-        # Vertex position
-        Px, Py = self.x, self.y
-
-        # Vector along the link
-        ABx = Bx - Ax
-        ABy = By - Ay
-        ab_len_sq = ABx*ABx + ABy*ABy
-
-        # Degenerate link (zero-length)
-        if ab_len_sq == 0:
+        # Broad-phase AABB rejection
+        if (self.x < link.minx - vertex_radius or self.x > link.maxx + vertex_radius or
+            self.y < link.miny - vertex_radius or self.y > link.maxy + vertex_radius):
             return
 
-        # Vector from link start to vertex
-        APx = Px - Ax
-        APy = Py - Ay
+        # Link endpoints
+        link_start_x, link_start_y = link.v1.x, link.v1.y
+        link_end_x,   link_end_y   = link.v2.x, link.v2.y
 
-        # Projection factor (clamped to segment)
-        t = max(0.0, min(1.0, (APx*ABx + APy*ABy) / ab_len_sq))
+        # Current and previous vertex positions
+        curr_x, curr_y = self.x,  self.y
+        prev_x, prev_y = self.lx, self.ly
 
-        # Closest point on segment
-        Cx = Ax + ABx * t
-        Cy = Ay + ABy * t
+        # Link direction vector
+        link_dx = link_end_x - link_start_x
+        link_dy = link_end_y - link_start_y
+        link_len_sq = link_dx * link_dx + link_dy * link_dy
+        if link_len_sq == 0:
+            return
 
-        # Vector from closest point to vertex
-        dx = Px - Cx
-        dy = Py - Cy
-        dist = (dx*dx + dy*dy) ** 0.5
+        # Project current vertex position onto link segment
+        to_curr_x = curr_x - link_start_x
+        to_curr_y = curr_y - link_start_y
+        t_closest = max(
+            0.0,
+            min(1.0, (to_curr_x * link_dx + to_curr_y * link_dy) / link_len_sq)
+        )
 
-        # If inside collision radius, push out
-        if dist < vertex_radius and dist > 0:
-            # Normalized direction
-            nx = dx / dist
-            ny = dy / dist
+        closest_x = link_start_x + link_dx * t_closest
+        closest_y = link_start_y + link_dy * t_closest
 
-            # Push vertex to satisfy constraint
-            push_dist = vertex_radius - dist
-            self.x += nx * push_dist
-            self.y += ny * push_dist
+        # Distance from vertex to link
+        sep_x = curr_x - closest_x
+        sep_y = curr_y - closest_y
+        distance = (sep_x * sep_x + sep_y * sep_y) ** 0.5
 
-        # Handle exact overlap (dist == 0) by pushing along arbitrary perpendicular
-        elif dist == 0:
-            # Link vector perpendicular
-            nx = -ABy
-            ny = ABx
-            len_n = (nx*nx + ny*ny) ** 0.5
-            if len_n > 0:
-                nx /= len_n
-                ny /= len_n
-                self.x += nx * vertex_radius
-                self.y += ny * vertex_radius
+        # Static overlap resolution
+        if 0 < distance < vertex_radius:
+            penetration = (vertex_radius - distance) / distance
+            self.x += sep_x * penetration
+            self.y += sep_y * penetration
+            return
+
+        # Vertex displacement over the timestep
+        vel_x = curr_x - prev_x
+        vel_y = curr_y - prev_y
+        if vel_x == 0 and vel_y == 0:
+            return
+
+        # Link outward normal (unit length)
+        inv_link_len = 1.0 / (link_len_sq ** 0.5)
+        normal_x = -link_dy * inv_link_len
+        normal_y =  link_dx * inv_link_len
+
+        # Signed distances to link plane at previous and current positions
+        prev_signed_dist = (
+            (prev_x - link_start_x) * normal_x +
+            (prev_y - link_start_y) * normal_y
+        )
+        curr_signed_dist = (
+            (curr_x - link_start_x) * normal_x +
+            (curr_y - link_start_y) * normal_y
+        )
+
+        r = vertex_radius
+
+        # No crossing of the collision slab
+        if (prev_signed_dist > r and curr_signed_dist > r) or \
+        (prev_signed_dist < -r and curr_signed_dist < -r):
+            return
+
+        denom = prev_signed_dist - curr_signed_dist
+        if denom == 0:
+            return
+
+        # Time of impact along the vertex path
+        toi = (prev_signed_dist - r) / denom
+        if toi < 0 or toi > 1:
+            return
+
+        # Contact point
+        hit_x = prev_x + vel_x * toi
+        hit_y = prev_y + vel_y * toi
+
+        # Check if contact lies within the segment
+        to_hit_x = hit_x - link_start_x
+        to_hit_y = hit_y - link_start_y
+        proj = (to_hit_x * link_dx + to_hit_y * link_dy) / link_len_sq
+        if proj < 0 or proj > 1:
+            return
+
+        # Resolve to non-penetrating position
+        self.x = hit_x + normal_x * r
+        self.y = hit_y + normal_y * r
+
+    @staticmethod
+    def collides_with_any_sculptures(px: float, py: float, collision_sculptures: list) -> bool:
+        for sculpture in collision_sculptures:
+            if Vertex.collides_with_sculpture(px, py, sculpture):
+                return True
+        return False
+
+    @staticmethod
+    def collides_with_sculpture(px: float, py: float, sculpture) -> bool:
+        polygon = sculpture.vertices
+        inside = False
+
+        n = len(polygon)
+        if n < 3:
+            return False
+
+        for i in range(n):
+            v1 = polygon[i]
+            v2 = polygon[(i + 1) % n]
+
+            x1, y1 = v1.x, v1.y
+            x2, y2 = v2.x, v2.y
+
+            intersects = ((y1 > py) != (y2 > py))
+            if intersects:
+                t = (py - y1) / (y2 - y1)
+                x_intersect = x1 + t * (x2 - x1)
+                if x_intersect > px:
+                    inside = not inside
+
+        return inside
 
     def to_json(self) -> dict:
         if self.boundary:
@@ -262,17 +327,35 @@ class Softbody:
         self.vertices = vertices
         self.links = links
 
-    def update(self, collision_links: list[Link] = []):
+    def update(self, collision_links: list[Link] = [], collision_sculptures: list = [], 
+               do_collision: bool = True):
+        # Integrate motion
         for vertex in self.vertices:
-            vertex.update_independently()
+            vertex.update_independently(collision_sculptures, do_collision)
+    
+            # Assign and apply mouse grab forces to the grabbed vertex
+            if get_mouse_presses()[0]:
+                if not state.vertex_grabbed and distance(vertex.x_y(), get_relative_mouse_position()) < MOUSE_GRAB_RADIUS:
+                    state.vertex_grabbed = vertex
+                if vertex == state.vertex_grabbed:
+                    vertex.apply_mouse_grab_force()
+            else:
+                state.vertex_grabbed = None
 
+        # Solve constraints + collisions together
         for _ in range(CONSTRAINT_ITERATIONS):
             for link in self.links:
                 link.constrain_distance()
+
             for vertex in self.vertices:
                 vertex.constrain_tank_bounds()
-                # for link in collision_links:
-                #     vertex.constrain_distance_to_static_link(link)
+
+        if do_collision:
+            for _ in range(2):
+                for vertex in self.vertices:
+                    for static_link in collision_links:
+                        vertex.constrain_distance_to_static_link(static_link)
+
 
     def to_json(self) -> dict:
         vertex_ids = list(map(id, self.vertices))
