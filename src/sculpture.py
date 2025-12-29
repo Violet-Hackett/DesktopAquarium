@@ -5,8 +5,24 @@ SCULPTURE_COLOR = pygame.Color(0, 0, 0)
 class Sculpture:
     def __init__(self, vertices: list[Vertex], is_background: bool, collision_enabled: bool):
         self.vertices = vertices
+        self.links: list[Link] = []
+        self.generate_links()
         self.is_background = is_background
         self.collision_enabled = collision_enabled
+
+    def add_vertex(self, vertex: Vertex):
+        self.vertices.append(vertex)
+        self.generate_links()
+                
+    def generate_links(self):
+        self.links = []
+        for i, vertex in enumerate(self.vertices):
+            if i != len(self.vertices)-1:
+                self.links.append(Link(vertex, self.vertices[i+1], 
+                                       distance(vertex.x_y(), self.vertices[i+1].x_y())))
+            else:
+                self.links.append(Link(vertex, self.vertices[0], 
+                                       distance(vertex.x_y(), self.vertices[0].x_y())))
 
     def render(self, tank_rect: pygame.Rect):
         surface = pygame.Surface(tank_rect.size, pygame.SRCALPHA)
@@ -22,6 +38,17 @@ class Sculpture:
             pygame.draw.polygon(surface, SCULPTURE_COLOR, points)
 
         return surface
+    
+    def has_neighbors(self, vertex: Vertex, radius: float) -> bool:
+        for neighbor in self.vertices:
+            if neighbor != vertex and distance(vertex.x_y(), neighbor.x_y()) < radius:
+                return True
+        return False
+    
+    def simplify(self, simplify_radius: float):
+        for vertex in self.vertices:
+            if self.has_neighbors(vertex, simplify_radius):
+                self.vertices.remove(vertex)
     
     def to_json(self) -> dict:
         vertex_ids = list(map(id, self.vertices))

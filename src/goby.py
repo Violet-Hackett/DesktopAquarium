@@ -5,6 +5,7 @@ from softbody import *
 from resources import *
 import state
 from egg import Egg
+import math
 
 GOBY_START_SIZE = 1
 GOBY_MAX_SIZE = 8
@@ -214,3 +215,7 @@ class Goby(Organism):
         ai_status = AIStatus(json_dict['ai_status'])
         alive = json_dict['alive']
         return Goby(softbody, age, destination, direction, speed, ai_status, alive)
+    
+    @staticmethod
+    def get_spawn_key():
+        return pygame.K_g

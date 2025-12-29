@@ -85,3 +85,7 @@ class Seaweed(Organism):
     def from_json(json_dict: dict, ids_to_vertices: dict):
         softbody = Softbody.from_json(json_dict['softbody'], ids_to_vertices)
         return Seaweed(softbody)
+    
+    @staticmethod
+    def get_spawn_key():
+        return pygame.K_s

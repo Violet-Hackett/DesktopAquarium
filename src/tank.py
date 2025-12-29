@@ -25,6 +25,7 @@ SUPPORTED_ORGANISM_TYPES: dict[str, Type[Organism]] = {
 
 WATER_ALPHA = 80
 BACKGROUND_BRIGHTNESS = 0.8
+SCULPTURE_SIMPLIFY_RADIUS = 0.5
 class Tank:
     def __init__(self, rect: pygame.Rect, organisms: list[organism.Organism], 
                  sculptures: list[Sculpture], filepath: str | None = None):
@@ -36,7 +37,7 @@ class Tank:
         self.paused = False
         self.ui: UI = UI()
         self.sculptures: list[Sculpture] = sculptures
-        self.selected_structure: Sculpture | None = None
+        self.selected_sculpture: Sculpture | None = None
         self.filepath = filepath
 
         if rect.width < 165:
@@ -46,12 +47,36 @@ class Tank:
         is_in_buffers = buffer_key in self.buffers.keys()
         flagged_for_update = buffer_key in state.buffer_update_flags
         return (not is_in_buffers) or flagged_for_update
+    
+    def spawn_keyed_organisms(self):
+        for event in get_events():
+            if event.type == pygame.KEYDOWN: 
+                for organism_type in SUPPORTED_ORGANISM_TYPES.values():   
+                    if event.key == organism_type.get_spawn_key():
+                        mouse_pos = get_relative_mouse_position()
+                        spawn_pos = (mouse_pos[0] - 1e-6, mouse_pos[1])
+                        self.organisms.append(organism_type.generate_random(spawn_pos))
+
+    def get_collision_sculptures(self) -> list[Sculpture]:
+        sculptures = []
+        for sculpture in self.sculptures:
+            if sculpture.collision_enabled:
+                sculptures.append(sculpture)
+        return sculptures
+
+    def get_collision_links(self) -> list[Link]:
+        links = []
+        for sculpture in self.get_collision_sculptures():
+            links += sculpture.links
+        return links
 
     def update(self):
         state.buffer_update_flags = []
+        self.spawn_keyed_organisms()
+        collision_links = self.get_collision_links()
         if not self.paused:
             for organism_instance in self.organisms:
-                organism_instance.update(self)
+                organism_instance.update(self, collision_links)
         self.ui.update()
     
     def render(self, scale: float, overlay_frame: bool = False) -> pygame.Surface:
@@ -180,9 +205,15 @@ class Tank:
         self.paused = False
 
     def new_sculpture(self):
+        # Simplify the current sculpture if one exists
+        if self.selected_sculpture:
+            self.selected_sculpture.simplify(SCULPTURE_SIMPLIFY_RADIUS)
+
+
+        # Create a new sculpture
         background = self.ui.sculpt_swich_state == SculptSwitchState.BACKGROUND
         new_sculpture = Sculpture([], background, not background)
-        self.selected_structure = new_sculpture
+        self.selected_sculpture = new_sculpture
         self.sculptures.append(new_sculpture)
 
     def sculpt(self):
@@ -192,13 +223,13 @@ class Tank:
             return
 
         # Create a new structure if none is selected
-        if not self.selected_structure:
+        if not self.selected_sculpture:
             self.new_sculpture()
 
         # Update sculpture SculptSwitchState 
-        self.selected_structure.is_background = self.ui.sculpt_swich_state == SculptSwitchState.BACKGROUND # type: ignore
+        self.selected_sculpture.is_background = self.ui.sculpt_swich_state == SculptSwitchState.BACKGROUND # type: ignore
 
-        self.selected_structure.vertices.append(Vertex(*get_relative_mouse_position(), 0, [], # type: ignore
+        self.selected_sculpture.add_vertex(Vertex(*get_relative_mouse_position(), 0, [], # type: ignore
                                                        VertexFlag.SCULPTURE)) 
     
     def drag_window(self):
@@ -258,9 +289,8 @@ class Tank:
         links: list[Link] = []
         for organism in organisms:
             links += organism.softbody.links
-        # Un-comment if links are ever implemented into sculptures
-        # for sculpture in sculptures:
-        #     links += sculpture.links
+        for sculpture in sculptures:
+            links += sculpture.links
         for link in links:
             link.v1.links.append(link)
 

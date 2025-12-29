@@ -5,7 +5,7 @@ import win32api
 selected_tank = None
 
 # Measurements
-SCALE: int = 8
+SCALE: int = 6
 UI_HEIGHT: int = 11
 WINDOW_POSITION: tuple[int, int] = (0, 0)
 last_win_mouse_position = win32api.GetCursorPos()
@@ -46,9 +46,11 @@ vertex_grabbed = None
 
 def load_tank():
     global selected_tank
+    global frame_count
     if not selected_tank:
         raise BufferError("Cannot load tank: no tank assigned")
     selected_tank = selected_tank.load() 
+    frame_count = 0
 
 def unassign_selected_tank():
     global selected_tank

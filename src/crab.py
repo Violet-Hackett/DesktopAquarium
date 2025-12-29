@@ -121,3 +121,7 @@ class Crab(Organism):
     def from_json(json_dict: dict, ids_to_vertices: dict):
         softbody = Softbody.from_json(json_dict['softbody'], ids_to_vertices)
         return Crab(softbody, json_dict['size'])
+    
+    @staticmethod
+    def get_spawn_key():
+        return pygame.K_c

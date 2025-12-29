@@ -47,6 +47,10 @@ while running:
     if not state.selected_tank:
         new_tank()
 
+    if state.frame_count == 50:
+        for sculpture in state.selected_tank.sculptures: # type:ignore
+            sculpture.simplify(0.5)
+
     # Check for user events
     for event in get_events():
         if event.type == pygame.KEYDOWN:    

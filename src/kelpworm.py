@@ -30,6 +30,8 @@ class KelpWorm(Organism):
         self.destination = destination
         self.targeted_organism: Organism | None = None
         self.caught_organism: Organism | None = None
+        
+        self.spawn_key: int | None = pygame.K_k
 
     def render(self, tank_rect: pygame.Rect) -> pygame.Surface:
         surface = pygame.Surface(tank_rect.size, pygame.SRCALPHA)
@@ -207,3 +209,7 @@ class KelpWorm(Organism):
         ai_status = AIStatus(json_dict['ai_status'])
         time_of_last_catch = json_dict['time_of_last_catch']
         return KelpWorm(softbody, time_of_last_catch, ai_status, destination)
+    
+    @staticmethod
+    def get_spawn_key():
+        return pygame.K_k

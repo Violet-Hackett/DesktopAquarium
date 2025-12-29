@@ -26,6 +26,9 @@ class Organism:
         self.age = age
         self.ai_status = ai_status
         self.alive = alive
+        
+        # Abstract
+        self.spawn_key: int | None = None
 
     def root_position(self) -> tuple[float, float]:
         return (self.softbody.vertices[0].x,
@@ -56,10 +59,10 @@ class Organism:
 
         return surface
     
-    def update(self, tank):
+    def update(self, tank, collision_links: list[Link] = []):
         if self.alive:
             self.update_ai(tank)
-        self.softbody.update()
+        self.softbody.update(collision_links)
         self.age += 1
     
     # Abstract method
@@ -88,4 +91,9 @@ class Organism:
     # Abstract method
     @staticmethod
     def from_json(json_dict: dict, ids_to_vertices: dict):
+        raise NotImplementedError()
+    
+    # Abstract method
+    @staticmethod
+    def get_spawn_key():
         raise NotImplementedError()

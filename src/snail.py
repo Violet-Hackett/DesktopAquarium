@@ -187,3 +187,7 @@ class Snail(Organism):
         size = json_dict['size']
         wall = Wall(json_dict['wall'])
         return Snail(softbody, size, wall)
+    
+    @staticmethod
+    def get_spawn_key():
+        return pygame.K_n
