@@ -13,14 +13,15 @@ import json
 from organism import Organism
 from typing import Type
 
-import crab, egg, goby, kelpworm, seaweed, snail
+import crab, egg, goby, kelpworm, seaweed, snail, jellyfish
 SUPPORTED_ORGANISM_TYPES: dict[str, Type[Organism]] = {
     'Crab': crab.Crab,
     'Egg': egg.Egg,
     'Goby': goby.Goby,
     'KelpWorm': kelpworm.KelpWorm,
     'Seaweed': seaweed.Seaweed,
-    'Snail': snail.Snail
+    'Snail': snail.Snail,
+    'Jellyfish': jellyfish.Jellyfish
 }
 
 WATER_ALPHA = 80

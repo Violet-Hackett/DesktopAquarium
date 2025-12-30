@@ -16,7 +16,7 @@ def quit():
     sys.exit()
 
 def new_tank():
-    state.selected_tank = Tank(pygame.Rect(0, 0, 165, 100), [], [])
+    state.selected_tank = Tank(pygame.Rect(0, 0, 200, 100), [], [])
 
 DEBUG_INFO_FREQUENCY = 32
 
@@ -68,7 +68,7 @@ while running:
     # Update and render tank
     state.selected_tank.update() # type: ignore
     if state.selected_tank:
-        root.blit(state.selected_tank.render(state.SCALE, overlay_frame=False), (0, 0))
+        root.blit(state.selected_tank.render(state.SCALE, overlay_frame=True), (0, 0))
 
     state.last_win_mouse_position = win32api.GetCursorPos()
     clock.tick()

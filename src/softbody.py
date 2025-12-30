@@ -28,6 +28,10 @@ class VertexFlag(Enum):
     KELPWORM_BODY = 14
     # Sculpture
     SCULPTURE = 15
+    # Jellyfish
+    JELLYFISH_HEAD = 16
+    JELLYFISH_FLESH = 17
+    JELLYFISH_ARM = 18
 
 class LinkFlag(Enum):
     NONE = 0
@@ -47,6 +51,10 @@ class LinkFlag(Enum):
     KELPWORM_BODY = 9
     # Sculpture
     SCULPTURE = 10
+    # Jellyfish
+    JELLYFISH_BELL = 11
+    JELLYFISH_ARM = 12
+    JELLYFISH_TENTACLE = 13
 
 BOUNCE_FORCE = 0.5
 DRAG = 0.1

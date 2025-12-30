@@ -93,7 +93,8 @@ class KelpWorm(Organism):
 
         # Delete the prey right before digesting period ends and reset anchor
         if state.frame_count - self.time_of_last_catch == KELPWORM_DIGEST_PERIOD-1:
-            tank.organisms.remove(self.caught_organism)
+            if self.caught_organism in tank.organisms:
+                tank.organisms.remove(self.caught_organism)
             self.caught_organism = None
             self.retract(keep_anchor=False)
             self.softbody.links = self.softbody.links[:-1]

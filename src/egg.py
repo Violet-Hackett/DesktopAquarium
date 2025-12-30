@@ -45,9 +45,10 @@ class Egg(Organism):
     
     @staticmethod
     def from_json(json_dict: dict, ids_to_vertices: dict):
+        from tank import SUPPORTED_ORGANISM_TYPES
         softbody = Softbody.from_json(json_dict['softbody'], ids_to_vertices)
         age = json_dict['age']
-        species: Type[Organism] = globals().get(json_dict['species']) # type: ignore
+        species: Type[Organism] = SUPPORTED_ORGANISM_TYPES[json_dict['species']]
         hatch_age = json_dict['hatch_age']
         r, g, b, a = json_dict['color']
         color = pygame.Color(r, g, b, a)
