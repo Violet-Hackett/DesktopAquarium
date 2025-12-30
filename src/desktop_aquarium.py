@@ -2,11 +2,6 @@ import pygame
 import sys
 from tank import *
 from organism import *
-from seaweed import Seaweed
-from goby import Goby
-from crab import Crab
-from snail import Snail
-from kelpworm import KelpWorm
 from resources import *
 import graphics_resources
 import state
@@ -16,24 +11,11 @@ def quit():
     sys.exit()
 
 def new_tank():
-    state.selected_tank = Tank(pygame.Rect(0, 0, 200, 100), [], [])
+    state.selected_tank = Tank(pygame.Rect(0, 0, *state.DEFAULT_TANK_SIZE), [], [])
 
 DEBUG_INFO_FREQUENCY = 32
 
 new_tank()
-
-organisms: list[Organism] = []
-organisms.append(KelpWorm.generate_random((60, 70)))
-organisms.append(Goby.generate_random((80, 20)))
-organisms.append(Goby.generate_random((80, 10)))
-organisms.append(Goby.generate_random((80, 30), 5970))
-organisms.append(Goby.generate_random((80, 40)))
-organisms.append(Goby.generate_newborn((80, 50)))
-organisms.append(Snail.generate_random((70, state.tank_height())))
-organisms.append(Snail.generate_random((30, state.tank_height())))
-organisms += [Seaweed.generate_random((x + random.randint(-9, 9), 
-                                       state.tank_height()-1)) for x in range(0, state.tank_width(), 20)]
-state.selected_tank.organisms = organisms # type: ignore
 
 pygame.init()
 root = pygame.display.set_mode(state.window_size(), pygame.NOFRAME)
@@ -68,7 +50,7 @@ while running:
     # Update and render tank
     state.selected_tank.update() # type: ignore
     if state.selected_tank:
-        root.blit(state.selected_tank.render(state.SCALE, overlay_frame=True), (0, 0))
+        root.blit(state.selected_tank.render(state.SCALE, overlay_frame=False), (0, 0))
 
     state.last_win_mouse_position = win32api.GetCursorPos()
     clock.tick()

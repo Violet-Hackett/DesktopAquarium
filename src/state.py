@@ -1,12 +1,13 @@
 from pathlib import Path
 from enum import Enum
 import win32api
+import pygame
 
 selected_tank = None
 
 # Measurements
-SCALE: int = 6
-UI_HEIGHT: int = 11
+SCALE: int = 5
+UI_HEIGHT: int = 19
 WINDOW_POSITION: tuple[int, int] = (0, 0)
 last_win_mouse_position = win32api.GetCursorPos()
 def tank_size() -> tuple[int, int]:
@@ -21,8 +22,12 @@ def tank_width() -> int:
 def tank_height() -> int:
     return tank_size()[1]
 
+DEFAULT_TANK_SIZE = (200, 100)
+
 # Filepaths
 DESKTOP_AQUARIUM_FP = Path(__file__).resolve().parent.parent
+FONT_FP = str(DESKTOP_AQUARIUM_FP) + "\\bin\\font"
+ICONS_FP = str(DESKTOP_AQUARIUM_FP) + "\\bin\\icons"
 TEXTURES_FP = str(DESKTOP_AQUARIUM_FP) + "\\bin\\textures"
 
 # Framerate control
@@ -50,6 +55,7 @@ def load_tank():
     if not selected_tank:
         raise BufferError("Cannot load tank: no tank assigned")
     selected_tank = selected_tank.load() 
+    pygame.display.set_mode(window_size(), pygame.NOFRAME)
     frame_count = 0
 
 def unassign_selected_tank():

@@ -79,12 +79,6 @@ def normalize(vector: tuple[float, float]):
 def graduate_value_towards(current_value: float, target_value: float, rate: float) -> float:
         return (current_value - target_value) / (1 + rate) + target_value
 
-def load_label_texture(name: str, recolor: pygame.Color | tuple | None = None) -> pygame.Surface:
-    label = pygame.image.load(state.TEXTURES_FP + f"\\{name}.png").convert_alpha()
-    if recolor:
-        label.fill(recolor, special_flags=pygame.BLEND_RGB_ADD)
-    return label
-
 def prompt_for_load_tank():
     tk_root = tkinter.Tk()
     tk_root.withdraw()

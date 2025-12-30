@@ -23,7 +23,7 @@ GOBY_EGG_LAYING_CHANCE = 0.1
 GOBY_EGG_HATCH_AGE = 1000
 GOBY_EGG_COLOR = pygame.Color(255, 90, 90, 100)
 GOBY_EGG_RADIUS = 1
-GOBY_EGG_DENSITY = 0.1
+GOBY_EGG_DENSITY = 0.3
 class Goby(Organism):
 
     def __init__(self, softbody: Softbody, age: int = 0, destination: tuple[int, int] | None = None,

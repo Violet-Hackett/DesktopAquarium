@@ -27,6 +27,7 @@ SUPPORTED_ORGANISM_TYPES: dict[str, Type[Organism]] = {
 WATER_ALPHA = 80
 BACKGROUND_BRIGHTNESS = 0.8
 SCULPTURE_SIMPLIFY_RADIUS = 0.5
+MINIMUM_TANK_WIDTH = 160
 class Tank:
     def __init__(self, rect: pygame.Rect, organisms: list[organism.Organism], 
                  sculptures: list[Sculpture], filepath: str | None = None):
@@ -41,8 +42,8 @@ class Tank:
         self.selected_sculpture: Sculpture | None = None
         self.filepath = filepath
 
-        if rect.width < 165:
-            print(f"WARNING: Tank too small (Width {rect.width} < 165)! UI will be broken")
+        if rect.width < MINIMUM_TANK_WIDTH:
+            print(f"WARNING: Tank too small (Width {rect.width} < {MINIMUM_TANK_WIDTH})! UI will be broken")
 
     def check_buffer_update_status(self, buffer_key: BufferKey):
         is_in_buffers = buffer_key in self.buffers.keys()
