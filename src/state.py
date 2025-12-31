@@ -2,6 +2,7 @@ from pathlib import Path
 from enum import Enum
 import win32api
 import pygame
+import sys
 
 selected_tank = None
 
@@ -22,10 +23,52 @@ def tank_width() -> int:
 def tank_height() -> int:
     return tank_size()[1]
 
-DEFAULT_TANK_SIZE = (200, 100)
+def verify_tank_dimensions(size: tuple[int, int]):
+    if size[0] < MINIMUM_TANK_WIDTH or size[1] < MINIMUM_TANK_HEIGHT:
+        print(f"WARNING: Tank too small ({size} < {(MINIMUM_TANK_WIDTH, MINIMUM_TANK_HEIGHT)})! UI will be broken")
+        return False
+    return True
 
-# Filepaths
-DESKTOP_AQUARIUM_FP = Path(__file__).resolve().parent.parent
+def change_mouse_position(dx: float, dy: float):
+    old_x, old_y = pygame.mouse.get_pos()
+    pygame.mouse.set_pos(old_x + dx * SCALE, old_y + dy * SCALE)
+    
+def change_tank_size(dx: int, dy: int, move_mouse: bool = False):
+    global DEFAULT_TANK_SIZE
+
+    if not selected_tank:
+        raise BufferError("Cannot change tank size: no tank assigned")
+    
+    new_size = (selected_tank.rect.width + dx, selected_tank.rect.height + dy )
+    if verify_tank_dimensions(new_size):
+        selected_tank.rect = pygame.Rect(0, 0, *new_size)
+        pygame.display.set_mode(window_size(), pygame.NOFRAME)
+        DEFAULT_TANK_SIZE = new_size
+        buffer_update_flags.append(BufferKey.BACKGROUND)
+
+        if move_mouse:
+            change_mouse_position(dx, dy)
+
+def increment_width():
+    change_tank_size(5, 0, True)
+def decrement_width():
+    change_tank_size(-5, 0, True)
+def increment_height():
+    change_tank_size(0, 5, True)
+def decrement_height():
+    change_tank_size(0, -5, True)
+
+DEFAULT_TANK_SIZE = (200, 100)
+MINIMUM_TANK_WIDTH = 160
+MINIMUM_TANK_HEIGHT = 25
+
+def get_base_path() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent.parent
+
+
+DESKTOP_AQUARIUM_FP = get_base_path()
 FONT_FP = str(DESKTOP_AQUARIUM_FP) + "\\bin\\font"
 ICONS_FP = str(DESKTOP_AQUARIUM_FP) + "\\bin\\icons"
 TEXTURES_FP = str(DESKTOP_AQUARIUM_FP) + "\\bin\\textures"
@@ -54,9 +97,11 @@ def load_tank():
     global frame_count
     if not selected_tank:
         raise BufferError("Cannot load tank: no tank assigned")
-    selected_tank = selected_tank.load() 
-    pygame.display.set_mode(window_size(), pygame.NOFRAME)
-    frame_count = 0
+    new_tank = selected_tank.load() 
+    if new_tank:
+        selected_tank = new_tank
+        pygame.display.set_mode(window_size(), pygame.NOFRAME)
+        frame_count = 0
 
 def unassign_selected_tank():
     global selected_tank

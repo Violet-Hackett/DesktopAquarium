@@ -221,9 +221,5 @@ class KelpWorm(Organism):
         return KelpWorm(softbody, time_of_last_catch, ai_status, destination)
     
     @staticmethod
-    def get_spawn_key():
-        return pygame.K_k
-    
-    @staticmethod
     def get_do_collision() -> bool:
         return True

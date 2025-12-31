@@ -232,9 +232,5 @@ class Jellyfish(Organism):
         return Jellyfish(softbody, json_dict['age'])
     
     @staticmethod
-    def get_spawn_key():
-        return pygame.K_j
-    
-    @staticmethod
     def get_do_collision() -> bool:
         return True

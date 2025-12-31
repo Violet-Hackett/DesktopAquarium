@@ -228,9 +228,5 @@ class Goby(Organism):
         return Goby(softbody, age, destination, direction, speed, ai_status, alive)
     
     @staticmethod
-    def get_spawn_key():
-        return pygame.K_g
-    
-    @staticmethod
     def get_do_collision() -> bool:
         return True

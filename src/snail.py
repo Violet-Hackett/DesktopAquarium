@@ -189,9 +189,5 @@ class Snail(Organism):
         return Snail(softbody, size, wall)
     
     @staticmethod
-    def get_spawn_key():
-        return pygame.K_n
-    
-    @staticmethod
     def get_do_collision() -> bool:
         return True

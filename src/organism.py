@@ -92,10 +92,5 @@ class Organism:
     
     # Abstract method
     @staticmethod
-    def get_spawn_key():
-        raise NotImplementedError()
-    
-    # Abstract method
-    @staticmethod
     def get_do_collision() -> bool:
         raise NotImplementedError()

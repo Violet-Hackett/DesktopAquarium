@@ -123,9 +123,5 @@ class Crab(Organism):
         return Crab(softbody, json_dict['size'])
     
     @staticmethod
-    def get_spawn_key():
-        return pygame.K_c
-    
-    @staticmethod
     def get_do_collision() -> bool:
         return True

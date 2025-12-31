@@ -10,24 +10,11 @@ from sculpture import Sculpture
 from ui import *
 from softbody import *
 import json
-from organism import Organism
-from typing import Type
-
-import crab, egg, goby, kelpworm, seaweed, snail, jellyfish
-SUPPORTED_ORGANISM_TYPES: dict[str, Type[Organism]] = {
-    'Crab': crab.Crab,
-    'Egg': egg.Egg,
-    'Goby': goby.Goby,
-    'KelpWorm': kelpworm.KelpWorm,
-    'Seaweed': seaweed.Seaweed,
-    'Snail': snail.Snail,
-    'Jellyfish': jellyfish.Jellyfish
-}
+from supported_organisms import SUPPORTED_ORGANISM_TYPES, SPAWNABLE_ORGANISM_TYPES
 
 WATER_ALPHA = 80
 BACKGROUND_BRIGHTNESS = 0.8
 SCULPTURE_SIMPLIFY_RADIUS = 0.5
-MINIMUM_TANK_WIDTH = 160
 class Tank:
     def __init__(self, rect: pygame.Rect, organisms: list[organism.Organism], 
                  sculptures: list[Sculpture], filepath: str | None = None):
@@ -42,22 +29,18 @@ class Tank:
         self.selected_sculpture: Sculpture | None = None
         self.filepath = filepath
 
-        if rect.width < MINIMUM_TANK_WIDTH:
-            print(f"WARNING: Tank too small (Width {rect.width} < {MINIMUM_TANK_WIDTH})! UI will be broken")
+        state.verify_tank_dimensions(self.rect.size)
 
     def check_buffer_update_status(self, buffer_key: BufferKey):
         is_in_buffers = buffer_key in self.buffers.keys()
         flagged_for_update = buffer_key in state.buffer_update_flags
         return (not is_in_buffers) or flagged_for_update
     
-    def spawn_keyed_organisms(self):
-        for event in get_events():
-            if event.type == pygame.KEYDOWN: 
-                for organism_type in SUPPORTED_ORGANISM_TYPES.values():   
-                    if event.key == organism_type.get_spawn_key():
-                        mouse_pos = get_relative_mouse_position()
-                        spawn_pos = (mouse_pos[0] - 1e-6, mouse_pos[1])
-                        self.organisms.append(organism_type.generate_random(spawn_pos))
+    def spawn_organism(self):
+        mouse_pos = get_relative_mouse_position()
+        spawn_pos = (mouse_pos[0] - 1e-6, mouse_pos[1])
+        organism_type = SPAWNABLE_ORGANISM_TYPES[self.ui.spawn_selection]
+        self.organisms.append(organism_type.generate_random(spawn_pos))
 
     def get_collision_sculptures(self) -> list[Sculpture]:
         sculptures = []
@@ -74,7 +57,12 @@ class Tank:
 
     def update(self):
         state.buffer_update_flags = []
-        self.spawn_keyed_organisms()
+        
+        # Spawn selected organism if enter is pressed
+        for event in get_events():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN: 
+                self.spawn_organism()
+
         collision_links = self.get_collision_links()
         collision_sculptures = self.get_collision_sculptures()
         for link in collision_links:
@@ -107,7 +95,7 @@ class Tank:
         surface.blit(self.render_godrays(), (0, 0))
 
         # Render background sculptures
-        surface.blit(self.render_foreground_sculptures(), (0, 0))
+        surface.blit(self.render_foreground_sculptures(overlay_frame), (0, 0))
 
         # Render UI
         surface.blit(self.render_ui(), (0, 0))
@@ -138,11 +126,11 @@ class Tank:
                 surface.blit(sculpture.render(self.rect))
         return surface
 
-    def render_foreground_sculptures(self):
+    def render_foreground_sculptures(self, overlay_frame: bool = False):
         surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
         for sculpture in self.sculptures:
             if not sculpture.is_background:
-                surface.blit(sculpture.render(self.rect))
+                surface.blit(sculpture.render(self.rect, overlay_frame))
         return surface
 
     def render_godrays(self):

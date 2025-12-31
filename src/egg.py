@@ -58,9 +58,5 @@ class Egg(Organism):
         return Egg(softbody, species, hatch_age, color, radius, density, age)
     
     @staticmethod
-    def get_spawn_key():
-        return None
-    
-    @staticmethod
     def get_do_collision() -> bool:
         return True

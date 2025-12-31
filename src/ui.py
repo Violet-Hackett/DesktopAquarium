@@ -3,6 +3,9 @@ import state
 from enum import Enum
 from types import MethodType, FunctionType
 from resources import *
+from organism import Organism
+from typing import Type
+from supported_organisms import SPAWNABLE_ORGANISM_TYPES
 
 class SculptSwitchState(Enum):
     OFF = 0
@@ -20,7 +23,7 @@ def abbreviate_sculpt_switch_state(switch_state: SculptSwitchState) -> str:
 
 TANK_BORDER_COLOR = (255, 255, 255, 50)
 UI_BASE_COLOR = (17, 17, 17)
-UI_HIGHLIGHT_COLOR = (30, 30, 30)
+UI_HIGHLIGHT_COLOR = (25, 25, 25)
 UI_SHADOW_COLOR = (0, 0, 0)
 UI_INSET_COLOR = (10, 10, 10)
 UI_TEXT_COLOR = (50, 50, 50)
@@ -28,6 +31,7 @@ LETTER_HEIGHT = 4
 class UI:
     def __init__(self):
         self.sculpt_swich_state: SculptSwitchState = SculptSwitchState.OFF
+        self.spawn_selection: str = list(SPAWNABLE_ORGANISM_TYPES.keys())[0]
         self.elements: dict[UIElementKey, UIElement] = {}
 
     def render(self, tank) -> pygame.Surface:
@@ -71,9 +75,8 @@ class UI:
         sculpt_swich_x = 3 + new_sculpture_rect.right
         thumb_width = 5
         sculpt_swich_rect = pygame.Rect(sculpt_swich_x, layer_1_y, 17, 7)
-        surface.blit(render_button(sculpt_swich_rect, UI_INSET_COLOR, UI_INSET_COLOR, UI_SHADOW_COLOR,
+        surface.blit(render_button(sculpt_swich_rect, UI_INSET_COLOR, UI_HIGHLIGHT_COLOR, UI_SHADOW_COLOR,
                                    border_radius = 3))
-        # Draw highlight line <---
 
         sculpt_off_rect = pygame.Rect(sculpt_swich_x + 1, layer_1_y+1, 
                                       thumb_width, thumb_width)
@@ -90,8 +93,8 @@ class UI:
         surface.set_at((sculpt_swich_x + 3, layer_1_y+3), UI_HIGHLIGHT_COLOR)
         surface.set_at((sculpt_swich_x + 3 + thumb_width, layer_1_y+3), UI_HIGHLIGHT_COLOR)
         surface.set_at((sculpt_swich_x + 3 + thumb_width*2, layer_1_y+3), UI_HIGHLIGHT_COLOR)
-        pygame.draw.rect(surface, UI_BASE_COLOR, sculpt_thumb_rect, border_radius=2)
-        pygame.draw.rect(surface, UI_HIGHLIGHT_COLOR, sculpt_thumb_rect, border_radius=2, width=1)
+        pygame.draw.rect(surface, UI_HIGHLIGHT_COLOR, sculpt_thumb_rect, border_radius=2)
+        pygame.draw.rect(surface, UI_BASE_COLOR, sculpt_thumb_rect, border_radius=2, width=1)
         
         self.elements[UIElementKey.SCULPT_MODE_OFF] = UIElement(sculpt_off_rect, self.set_sculpt_mode_off, 
                                                              is_button=True)
@@ -102,7 +105,7 @@ class UI:
         
         # UI Grip
 
-        ui_grip_width = state.tank_width() - 140
+        ui_grip_width = state.tank_width() - 144
         ui_grip_rect = pygame.Rect(sculpt_swich_rect.right + 3, layer_1_y,
                         ui_grip_width, state.UI_HEIGHT-4)
         self.ui_grip_rect = ui_grip_rect
@@ -120,30 +123,81 @@ class UI:
                                                      flags_ui_update=False)
 
         # Save button
-        save_button_rect = pygame.Rect(ui_grip_rect.right+3, layer_1_y, 20, 7)
+        save_button_rect = pygame.Rect(ui_grip_rect.right+3, layer_1_y, 33, 7)
         surface.blit(render_button(save_button_rect, border_radius=2))
         save_label = render_text('save')
-        surface.blit(save_label, (save_button_rect.left+3, save_button_rect.top+2))
+        surface.blit(save_label, (save_button_rect.left+9, save_button_rect.top+2))
         self.elements[UIElementKey.SAVE_BUTTON] = UIElement(save_button_rect, tank.save, 
                                                              is_button=True)
 
         # Load button
-        load_button_rect = pygame.Rect(save_button_rect.right+2, layer_1_y, 20, 7)
+        load_button_rect = pygame.Rect(save_button_rect.right+2, layer_1_y, 33, 7)
         surface.blit(render_button(load_button_rect, border_radius=2))
         load_label = render_text('load')
-        surface.blit(load_label, (load_button_rect.left+3, load_button_rect.top+2))
+        surface.blit(load_label, (load_button_rect.left+9, load_button_rect.top+2))
         self.elements[UIElementKey.LOAD_BUTTON] = UIElement(load_button_rect, state.load_tank, 
                                                              is_button=True)
         
+        layer_2_y = layer_1_y + 8
+
+        # Spawn label
+        spawn_label = render_text('enter=')
+        surface.blit(spawn_label, (4, layer_2_y+2))
+
+        # Spawn selection button
+        spawn_selection_label = render_text(self.spawn_selection)
+        spawn_selection_btn_x = spawn_label.width + 6
+        spawn_selection_btn_rect = pygame.Rect(spawn_selection_btn_x, layer_2_y, 
+                                               spawn_selection_label.width+4, 7)
+        surface.blit(render_button(spawn_selection_btn_rect, border_radius=2))
+        surface.blit(spawn_selection_label, (spawn_selection_btn_x + 2, layer_2_y + 2))
+        self.elements[UIElementKey.SPAWN_SELECTION_BUTTON] = UIElement(spawn_selection_btn_rect, 
+                                                              self.advance_spawn_selection, 
+                                                              is_button=True, flags_ui_update=True)
+        
+        # Width control
+        width_label = render_text('w')
+        surface.blit(width_label, (ui_grip_rect.right + 3, layer_2_y + 1))
+        change_width_rect = pygame.Rect(ui_grip_rect.right + width_label.width + 5,
+                                         layer_2_y, 16, 7)
+        add_width_btn_rect = pygame.Rect(*change_width_rect.topleft, 7, 8)
+        sub_width_btn_rect = pygame.Rect(*add_width_btn_rect.topright, 7, 8)
+        add_icon = render_icon('plus')
+        sub_icon = render_icon('minus')
+        surface.blit(render_button(change_width_rect, UI_INSET_COLOR, UI_HIGHLIGHT_COLOR, 
+                                   UI_SHADOW_COLOR, 3))
+        surface.blit(add_icon, (add_width_btn_rect.left+3, add_width_btn_rect.top+2))
+        surface.blit(sub_icon, (sub_width_btn_rect.left+3, sub_width_btn_rect.top+2))
+        self.elements[UIElementKey.INCREMENT_WIDTH_BUTTON] = UIElement(add_width_btn_rect, state.increment_width, 
+                                                                is_button=True)
+        self.elements[UIElementKey.DECREMENT_WIDTH_BUTTON] = UIElement(sub_width_btn_rect, state.decrement_width, 
+                                                                is_button=True)
+        
+        # Height control
+        height_label = render_text('h')
+        surface.blit(height_label, (sub_width_btn_rect.right + 4, layer_2_y + 1))
+        change_height_rect = pygame.Rect(sub_width_btn_rect.right + height_label.width + 6,
+                                         layer_2_y, 16, 7)
+        add_height_btn_rect = pygame.Rect(*change_height_rect.topleft, 7, 8)
+        sub_height_btn_rect = pygame.Rect(add_height_btn_rect.right, layer_2_y, 7, 8)
+        add_icon = render_icon('plus')
+        sub_icon = render_icon('minus')
+        surface.blit(render_button(change_height_rect, UI_INSET_COLOR, UI_HIGHLIGHT_COLOR, 
+                                   UI_SHADOW_COLOR, 3))
+        surface.blit(add_icon, (add_height_btn_rect.left+3, add_height_btn_rect.top+2))
+        surface.blit(sub_icon, (sub_height_btn_rect.left+3, sub_height_btn_rect.top+2))
+        self.elements[UIElementKey.INCREMENT_HEIGHT_BUTTON] = UIElement(add_height_btn_rect, state.increment_height, 
+                                                                is_button=True)
+        self.elements[UIElementKey.DECREMENT_HEIGHT_BUTTON] = UIElement(sub_height_btn_rect, state.decrement_height, 
+                                                                is_button=True)
+
         # New tank button
-        new_tank_button_rect = pygame.Rect(load_button_rect.right+2, layer_1_y, 20, 7)
+        new_tank_button_rect = pygame.Rect(sub_height_btn_rect.right+4, layer_2_y, 20, 7)
         surface.blit(render_button(new_tank_button_rect, border_radius=2))
         new_tank_label = render_text('new')
         surface.blit(new_tank_label, (new_tank_button_rect.left+3, new_tank_button_rect.top+2))
         self.elements[UIElementKey.NEW_TANK_BUTTON] = UIElement(new_tank_button_rect, state.unassign_selected_tank, 
-                                                             is_button=True)
-        
-        layer_2_y = layer_1_y + 8
+                                                                is_button=True)
         
         # Tank interactive surface (for sculpting)
         self.elements[UIElementKey.TANK] = UIElement(pygame.Rect(0, 0, *state.tank_size()), tank.sculpt, 
@@ -162,6 +216,12 @@ class UI:
     def set_sculpt_mode_bg(self):
         self.sculpt_swich_state = SculptSwitchState.BACKGROUND
         state.buffer_update_flags.append(state.BufferKey.UI)
+
+    def advance_spawn_selection(self):
+        supported_organisms = list(SPAWNABLE_ORGANISM_TYPES.keys())
+        selection_index = supported_organisms.index(self.spawn_selection)
+        new_index = selection_index + 1 if selection_index < len(supported_organisms)-1 else 0
+        self.spawn_selection = supported_organisms[new_index]
     
     def update(self):
         mouse_pressed = get_mouse_presses()[0]
@@ -178,6 +238,11 @@ class UIElementKey(Enum):
     SAVE_BUTTON = 6
     LOAD_BUTTON = 7
     NEW_TANK_BUTTON = 8
+    INCREMENT_WIDTH_BUTTON = 9
+    DECREMENT_WIDTH_BUTTON = 10
+    INCREMENT_HEIGHT_BUTTON = 11
+    DECREMENT_HEIGHT_BUTTON = 12
+    SPAWN_SELECTION_BUTTON = 13
 
 class UIElement:
     def __init__(self, hitbox: pygame.Rect, function_reference: MethodType | FunctionType, is_button: bool = False, 
@@ -199,8 +264,9 @@ class UIElement:
 
         if mouse_pressed and colliding:
             if self.is_button:
-                # Check to see if more than one frame as elapsed since the button was being pressed
-                if state.frame_count > self.last_frame_pressed + 1:
+                # Check to see if more than one frame as elapsed since any element was being pressed
+                if all([state.frame_count > element.last_frame_pressed + 1 
+                        for element in state.selected_tank.ui.elements.values()]): # type: ignore
                     return_value = self.function_reference.__call__()
             else:
                 return_value = self.function_reference.__call__()
@@ -216,24 +282,35 @@ class UIElement:
     def mouse_collision(self):
         return self.hitbox.collidepoint(get_relative_mouse_position())
     
+def letter_to_filename(letter: str) -> str:
+    match letter:
+        case ' ':
+            return '_'
+        case '*':
+            return 'star'
+        case _:
+            return letter
+        
+    
 def render_text(text: str, color: pygame.Color | tuple[int, int, int] = UI_TEXT_COLOR):
     text = text.lower()
-    if not text.isalpha():
-        raise Exception(f"Cannot render text \"{text}\": string must contain only letters")
-    
-    letter_surfaces: list[pygame.Surface] = []
-    for letter in text:
-        letter_surfaces.append(pygame.image.load(state.FONT_FP + f"\\{letter}.png").convert_alpha())
+    try:
+        letter_surfaces: list[pygame.Surface] = []
+        for letter in text:
+            letter_surface = pygame.image.load(state.FONT_FP + f"\\{letter_to_filename(letter)}.png").convert_alpha()
+            letter_surfaces.append(letter_surface)
 
-    text_surface_width = sum(list(map(pygame.Surface.get_width, letter_surfaces))) + len(text) - 1 
-    text_surface = pygame.Surface((text_surface_width, LETTER_HEIGHT), pygame.SRCALPHA)
-    cursor_x = 0
-    for letter_surface in letter_surfaces:
-        text_surface.blit(letter_surface, (cursor_x, 0))
-        cursor_x += letter_surface.width + 1
-    
-    text_surface.fill(color, special_flags=pygame.BLEND_RGB_ADD)
-    return text_surface
+        text_surface_width = sum(list(map(pygame.Surface.get_width, letter_surfaces))) + len(text) - 1 
+        text_surface = pygame.Surface((text_surface_width, LETTER_HEIGHT), pygame.SRCALPHA)
+        cursor_x = 0
+        for letter_surface in letter_surfaces:
+            text_surface.blit(letter_surface, (cursor_x, 0))
+            cursor_x += letter_surface.width + 1
+        
+        text_surface.fill(color, special_flags=pygame.BLEND_RGB_ADD)
+        return text_surface
+    except:
+        raise Exception(f"Cannot render text \"{text}\": contains unsupported character(s)")
 
 def render_icon(name: str, color: pygame.Color | tuple[int, int, int] = UI_TEXT_COLOR):
     
