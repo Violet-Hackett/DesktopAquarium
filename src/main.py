@@ -20,7 +20,8 @@ new_tank()
 pygame.init()
 root = pygame.display.set_mode(state.window_size(), pygame.NOFRAME)
 pygame.display.set_window_position(state.WINDOW_POSITION)
-pygame.display.set_icon(pygame.image.load(state.TEXTURES_FP + f"\\goby.ico").convert_alpha())
+pygame.display.set_caption('Desktop Aquarium')
+pygame.display.set_icon(pygame.image.load(state.TEXTURES_FP + f"\\goby.png").convert_alpha())
 
 running = True
 clock = pygame.time.Clock()
