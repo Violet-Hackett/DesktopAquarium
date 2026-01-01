@@ -6,6 +6,9 @@ from resources import *
 import graphics_resources
 import state
 
+DEBUG = False
+DEBUG_PRINT_INFO_FREQUENCY = 150
+
 def quit():
     pygame.quit()
     sys.exit()
@@ -13,15 +16,13 @@ def quit():
 def new_tank():
     state.selected_tank = Tank(pygame.Rect(0, 0, *state.DEFAULT_TANK_SIZE), [], [])
 
-DEBUG_INFO_FREQUENCY = 150
-
 new_tank()
 
 pygame.init()
 root = pygame.display.set_mode(state.window_size(), pygame.NOFRAME)
 pygame.display.set_window_position(state.WINDOW_POSITION)
 pygame.display.set_caption('Desktop Aquarium')
-pygame.display.set_icon(pygame.image.load(state.TEXTURES_FP + f"\\goby.png").convert_alpha())
+pygame.display.set_icon(pygame.image.load(state.TEXTURES_FP + f"\\goby_icon.png").convert_alpha())
 
 running = True
 clock = pygame.time.Clock()
@@ -52,13 +53,13 @@ while running:
     # Update and render tank
     state.selected_tank.update() # type: ignore
     if state.selected_tank:
-        root.blit(state.selected_tank.render(state.SCALE, overlay_frame=False), (0, 0))
+        root.blit(state.selected_tank.render(state.SCALE, overlay_frame=DEBUG), (0, 0))
 
     state.last_win_mouse_position = win32api.GetCursorPos()
     clock.tick()
     state.frame_count += 1
 
-    if state.frame_count % DEBUG_INFO_FREQUENCY == 0:
+    if DEBUG and state.frame_count % DEBUG_PRINT_INFO_FREQUENCY == 0:
         print("fps: ", round(clock.get_fps(), 1))
 
     pygame.display.flip()
