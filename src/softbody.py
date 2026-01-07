@@ -37,24 +37,25 @@ class LinkFlag(Enum):
     NONE = 0
     # Seaweed
     SEAWEED_STIPE = 1
+    SEAWEED_BLADE = 2
     # Goby
-    GOBY_NECK = 2
-    GOBY_TAIL = 3
+    GOBY_NECK = 3
+    GOBY_TAIL = 4
     # Crab
-    CRAB_SHELL = 4
-    CRAB_LIMB = 5
+    CRAB_SHELL = 5
+    CRAB_LIMB = 6
     # Snail
-    SNAIL_FLESH = 6
-    SNAIL_SHELL = 7
+    SNAIL_FLESH = 7
+    SNAIL_SHELL = 8
     # KelpWorm
-    KELPWORM_NECK = 8
-    KELPWORM_BODY = 9
+    KELPWORM_NECK = 9
+    KELPWORM_BODY =  10
     # Sculpture
-    SCULPTURE = 10
+    SCULPTURE = 11
     # Jellyfish
-    JELLYFISH_BELL = 11
-    JELLYFISH_ARM = 12
-    JELLYFISH_TENTACLE = 13
+    JELLYFISH_BELL = 12
+    JELLYFISH_ARM = 13
+    JELLYFISH_TENTACLE = 14
 
 BOUNCE_FORCE = 0.5
 DRAG = 0.1
@@ -110,6 +111,35 @@ class Link:
         v1 = ids_to_vertices[json_dict['v1_id']]
         v2 = ids_to_vertices[json_dict['v2_id']]
         return Link(v1, v2, json_dict['length'], json_dict['tension'], LinkFlag(json_dict['flag']))
+    
+class AngleConstraint:
+    def __init__(self, v1, v2, v3, rest_angle, stiffness=1.0):
+        self.v1 = v1  # A
+        self.v2 = v2  # B (pivot)
+        self.v3 = v3  # C
+        self.rest_angle = rest_angle
+        self.stiffness = stiffness
+
+    def constrain(self):
+        a = Vector2(self.v1.x - self.v2.x, self.v1.y - self.v2.y)
+        b = Vector2(self.v3.x - self.v2.x, self.v3.y - self.v2.y)
+
+        if a.length_squared() == 0 or b.length_squared() == 0:
+            return
+
+        current = a.angle_to(b)
+        error = current - self.rest_angle
+        correction = error * self.stiffness
+
+        if not self.v1.anchor:
+            a.rotate_ip(-correction * 0.5)
+            self.v1.x = self.v2.x + a.x
+            self.v1.y = self.v2.y + a.y
+
+        if not self.v3.anchor:
+            b.rotate_ip(correction * 0.5)
+            self.v3.x = self.v2.x + b.x
+            self.v3.y = self.v2.y + b.y
 
 class Vertex:
     def __init__(self, x: float, y: float, density: float, links: list[Link], 
@@ -331,9 +361,10 @@ class Vertex:
                       json_dict['anchor'], boundary, json_dict['gravity'])
 
 class Softbody:
-    def __init__(self, vertices: list[Vertex], links: list[Link]):
+    def __init__(self, vertices: list[Vertex], links: list[Link], angles: list[AngleConstraint] = []):
         self.vertices = vertices
         self.links = links
+        self.angles = angles
 
     def update(self, collision_links: list[Link] = [], collision_sculptures: list = [], 
                do_collision: bool = True):
@@ -354,7 +385,8 @@ class Softbody:
         for _ in range(CONSTRAINT_ITERATIONS):
             for link in self.links:
                 link.constrain_distance()
-
+            for angle in self.angles:
+                angle.constrain()
             for vertex in self.vertices:
                 vertex.constrain_tank_bounds()
 

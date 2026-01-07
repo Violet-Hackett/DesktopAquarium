@@ -69,6 +69,7 @@ def get_base_path() -> Path:
 
 
 DESKTOP_AQUARIUM_FP = get_base_path()
+SAVES_FP = str(DESKTOP_AQUARIUM_FP) + "\\saves"
 FONT_FP = str(DESKTOP_AQUARIUM_FP) + "\\bin\\font"
 ICONS_FP = str(DESKTOP_AQUARIUM_FP) + "\\bin\\icons"
 TEXTURES_FP = str(DESKTOP_AQUARIUM_FP) + "\\bin\\textures"
@@ -77,8 +78,8 @@ TEXTURES_FP = str(DESKTOP_AQUARIUM_FP) + "\\bin\\textures"
 DEFAULT_FPS = 15
 fps: int = DEFAULT_FPS
 frame_count: int = 0
-def frame_delay_ms() -> int:
-    return int(1000 / fps)
+def frame_delay() -> float:
+    return 1 / fps
 
 # Buffer update scheduling
 class BufferKey(Enum):

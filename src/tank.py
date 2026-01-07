@@ -6,7 +6,7 @@ from effects import *
 import random
 from state import BufferKey
 import win32api
-from sculpture import Sculpture
+from sculpture import Sculpture, render_sculptures
 from ui import *
 from softbody import *
 import json
@@ -94,7 +94,7 @@ class Tank:
         surface.blit(self.render_bubbles(), (0, 0))
         surface.blit(self.render_godrays(), (0, 0))
 
-        # Render background sculptures
+        # Render foreground sculptures
         surface.blit(self.render_foreground_sculptures(overlay_frame), (0, 0))
 
         # Render UI
@@ -108,7 +108,7 @@ class Tank:
         if self.check_buffer_update_status(BufferKey.BACKGROUND):
 
             surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
-            background_image = pygame.image.load(state.TEXTURES_FP + "\\water_background.png")
+            background_image = load_texture('water_background')
             background_image = pygame.transform.scale_by(background_image, 1/state.SCALE)
             background_image.fill((255, 255, 255, WATER_ALPHA), None, pygame.BLEND_RGBA_MULT)
             background_offset = (-(background_image.get_width() - self.rect.width)/2,
@@ -120,18 +120,12 @@ class Tank:
         return self.buffers[BufferKey.BACKGROUND]
     
     def render_background_sculptures(self):
-        surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
-        for sculpture in self.sculptures:
-            if sculpture.is_background:
-                surface.blit(sculpture.render(self.rect))
-        return surface
+        background_sculptures = list(filter(Sculpture.get_is_background, self.sculptures))
+        return render_sculptures(self.rect, background_sculptures, color=BLACK)
 
     def render_foreground_sculptures(self, overlay_frame: bool = False):
-        surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
-        for sculpture in self.sculptures:
-            if not sculpture.is_background:
-                surface.blit(sculpture.render(self.rect, overlay_frame))
-        return surface
+        foreground_sculptures = list(filter(Sculpture.get_is_foreground, self.sculptures))
+        return render_sculptures(self.rect, foreground_sculptures, overlay_frame, color=WHITE)
 
     def render_godrays(self):
         surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
@@ -250,10 +244,11 @@ class Tank:
         with open(tank_fp, "w") as tank_file:
             tank_file.write(self.to_json())
 
-    def load(self):
-        tank_fp = prompt_for_load_tank()
-        if tank_fp == '':
-            return
+    def load(self, tank_fp: str|None = None):
+        if tank_fp == None:
+            tank_fp = prompt_for_load_tank()
+            if tank_fp == '':
+                return
         with open(tank_fp) as tank_file:
             loaded_tank = Tank.from_json(json.load(tank_file))
             loaded_tank.filepath = tank_fp

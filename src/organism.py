@@ -7,7 +7,6 @@ FRAME_VERTEX_COLOR = pygame.Color(0, 255, 0)
 FRAME_LINK_COLOR = pygame.Color(255, 0, 0, 175)
 FRAME_INVISIBLE_LINK_COLOR = pygame.Color(70, 70, 70, 100)
 FRAME_VELOCITY_COLOR = pygame.Color(0, 0, 255, 175)
-BLACK = pygame.Color(0, 0, 0)
 
 class AIStatus(Enum):
     NONE = 0

@@ -5,6 +5,9 @@ from enum import Enum
 import tkinter
 import tkinter.filedialog
 
+WHITE = pygame.Color(255, 255, 255)
+BLACK = pygame.Color(0, 0, 0)
+
 def distance(p1: tuple[float, float], p2: tuple[float, float]) -> float:
     x1, y1 = p1
     x2, y2 = p2
@@ -98,3 +101,9 @@ def prompt_for_save_tank(save_filepath: str | None = None):
                                                      initialfile=save_filepath)
     tk_root.destroy()
     return file_name
+
+def load_texture(texture_name: str, alpha: bool = False) -> pygame.Surface:
+    texture = pygame.image.load(state.TEXTURES_FP + f"\\{texture_name}.png")
+    if alpha:
+        return texture.convert_alpha()
+    return texture
